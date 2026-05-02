@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CMP701 Marking Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:13px;background:#f0f4f8;color:#1e293b;min-height:100vh}
+/* ── Header ── */
+.hdr{background:#1B3A6B;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.hdr-left h1{font-size:15px;font-weight:700}
+.hdr-left p{font-size:10px;opacity:.75;margin-top:2px}
+.cohort-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;transition:.15s}
+.cohort-badge:hover{background:rgba(255,255,255,.25)}
+/* ── Tabs ── */
+.tabs{display:flex;background:#162d55;border-bottom:3px solid #0D7377;overflow-x:auto;flex-shrink:0}
+.tab{padding:10px 16px;color:rgba(255,255,255,.6);cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;border:none;background:none;transition:.15s;letter-spacing:.3px}
+.tab:hover{color:#fff;background:rgba(255,255,255,.07)}
+.tab.on{color:#fff;background:#0D7377}
+/* ── Pages ── */
+.pg{display:none;padding:16px;max-width:1400px;margin:0 auto}
+.pg.on{display:block}
+/* ── KPI cards ── */
+.krow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.kpi{background:#fff;border-radius:8px;padding:11px 15px;flex:1 1 110px;border-top:4px solid #1B3A6B;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.kpi .v{font-size:24px;font-weight:800;line-height:1.1;color:#1B3A6B}
+.kpi .l{font-size:9px;color:#64748b;margin-top:3px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.kpi.gr .v,.kpi.gr{border-top-color:#15803D;}.kpi.gr .v{color:#15803D}
+.kpi.am .v,.kpi.am{border-top-color:#B45309;}.kpi.am .v{color:#B45309}
+.kpi.rd .v,.kpi.rd{border-top-color:#B91C1C;}.kpi.rd .v{color:#B91C1C}
+.kpi.tl .v,.kpi.tl{border-top-color:#0D7377;}.kpi.tl .v{color:#0D7377}
+.kpi.bl .v,.kpi.bl{border-top-color:#1D4ED8;}.kpi.bl .v{color:#1D4ED8}
+/* ── Section header ── */
+.sh{color:#fff;padding:9px 14px;border-radius:6px 6px 0 0;font-size:12px;font-weight:700;letter-spacing:.3px}
+/* ── Table ── */
+.tw{background:#fff;border-radius:0 0 6px 6px;overflow-x:auto;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#334155;color:#fff;padding:8px 10px;text-align:center;font-weight:700;font-size:11px;white-space:nowrap;position:sticky;top:0;z-index:2}
+thead th.L{text-align:left}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody tr:hover{background:#eff6ff}
+td{padding:6px 10px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
+td.C{text-align:center}
+td.L{text-align:left}
+tr.gh td{background:#e8eef7!important;font-weight:700;font-size:11px;color:#1B3A6B;padding:5px 10px;letter-spacing:.3px}
+tr.tot td{background:#1B3A6B!important;color:#fff!important;font-weight:700}
+tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
+/* ── Progress bar ── */
+.pb{display:flex;align-items:center;gap:5px}
+.pbr{flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:40px}
+.pbf{height:100%;border-radius:3px;transition:width .3s}
+.pp{font-size:11px;font-weight:700;width:34px;text-align:right}
+/* ── Badges ── */
+.b{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap}
+.by{background:#dcfce7;color:#15803D}.bn{background:#fee2e2;color:#B91C1C}
+.br{background:#f1f5f9;color:#64748b}.be{background:#fef9c3;color:#854d0e}
+.bp{background:#e0f2fe;color:#0369a1}
+/* ── Marker View ── */
+.mvc{background:#fff;border-radius:8px;padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.mvc label{font-weight:700;color:#1B3A6B;font-size:12px;display:block;margin-bottom:5px}
+.msel{padding:8px 14px;border:2px solid #0D7377;border-radius:6px;font-size:14px;font-weight:700;color:#0D7377;background:#f0fdfc;cursor:pointer;min-width:220px}
+.msel:focus{outline:none;box-shadow:0 0 0 3px rgba(13,115,119,.2)}
+.mst{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;text-align:center;min-width:90px}
+.msc .n{font-size:20px;font-weight:800;color:#1D4ED8}
+.msc .l{font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+/* ── Filters ── */
+.frow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.sb{padding:7px 12px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:12px;flex:1 1 160px;max-width:260px}
+.sb:focus{outline:none;border-color:#0D7377}
+.fs{padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff;cursor:pointer}
+.fs:focus{outline:none;border-color:#0D7377}
+.count-badge{font-size:11px;color:#64748b;margin-left:4px}
+/* ── Upload section ── */
+.upload-zone{border:2px dashed #94a3b8;border-radius:10px;padding:30px;text-align:center;background:#f8fafc;cursor:pointer;transition:.2s;margin-bottom:16px}
+.upload-zone:hover,.upload-zone.drag{border-color:#0D7377;background:#f0fdfc}
+.upload-zone .icon{font-size:36px;margin-bottom:8px}
+.upload-zone h3{color:#1B3A6B;font-size:14px;margin-bottom:4px}
+.upload-zone p{font-size:11px;color:#64748b}
+.upload-zone input{display:none}
+.btn{padding:8px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.15s}
+.btn-primary{background:#1B3A6B;color:#fff}.btn-primary:hover{background:#162d55}
+.btn-teal{background:#0D7377;color:#fff}.btn-teal:hover{background:#0a5e62}
+.btn-green{background:#15803D;color:#fff}.btn-green:hover{background:#116632}
+.btn-outline{background:#fff;color:#1B3A6B;border:1.5px solid #1B3A6B}.btn-outline:hover{background:#f0f4f8}
+.btn-red{background:#B91C1C;color:#fff}.btn-red:hover{background:#991b1b}
+.btn-sm{padding:5px 12px;font-size:11px}
+.gap{gap:8px;display:flex;flex-wrap:wrap;align-items:center}
+/* ── Upload steps ── */
+.steps{display:flex;gap:0;margin-bottom:20px;flex-wrap:wrap}
+.step{flex:1 1 150px;padding:12px 16px;background:#f1f5f9;border-right:2px solid #e2e8f0;text-align:center}
+.step:last-child{border-right:none}
+.step.active{background:#eff6ff;border-bottom:3px solid #1D4ED8}
+.step.done{background:#f0fdf4;border-bottom:3px solid #15803D}
+.step-num{width:22px;height:22px;border-radius:50%;background:#94a3b8;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-bottom:4px}
+.step.active .step-num{background:#1D4ED8}
+.step.done .step-num{background:#15803D}
+.step-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px}
+/* ── Allocation preview table ── */
+.alloc-card{background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px}
+.alloc-card h3{font-size:13px;font-weight:700;color:#1B3A6B;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0}
+.alloc-group{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;margin-bottom:8px}
+.alloc-group h4{font-size:11px;font-weight:700;color:#0D7377;margin-bottom:8px;text-transform:uppercase;letter-spacing:.3px}
+.alloc-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
+.alloc-row:last-child{border-bottom:none}
+.alloc-marker{flex:1;font-size:12px;font-weight:600;color:#1e293b}
+.alloc-pct{background:#dbeafe;color:#1D4ED8;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.alloc-count{color:#64748b;font-size:11px;white-space:nowrap}
+/* ── Info/Alert boxes ── */
+.info{background:#eff6ff;border-left:4px solid #1D4ED8;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px;font-size:12px;color:#1e3a5f}
+.warn{background:#fffbeb;border-left:4px solid #D97706;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px;font-size:12px;color:#78350f}
+.success{background:#f0fdf4;border-left:4px solid #15803D;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px;font-size:12px;color:#14532d}
+.error-box{background:#fef2f2;border-left:4px solid #B91C1C;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:12px;font-size:12px;color:#7f1d1d}
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h2{font-size:15px;font-weight:700;color:#1B3A6B;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #e2e8f0}
+.modal .close{float:right;cursor:pointer;font-size:18px;color:#94a3b8;line-height:1}
+.modal .close:hover{color:#1B3A6B}
+/* ── Form fields ── */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select{width:100%;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Arial,sans-serif}
+.field input:focus,.field select:focus{outline:none;border-color:#0D7377}
+/* ── Template download ── */
+.tmpl-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px}
+.tmpl-box h4{font-size:12px;font-weight:700;color:#1B3A6B;margin-bottom:8px}
+.tmpl-box p{font-size:11px;color:#64748b;margin-bottom:10px;line-height:1.5}
+/* ── Cohort selector chips ── */
+.cohort-list{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.cohort-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid #cbd5e1;color:#64748b;background:#fff;transition:.15s}
+.cohort-chip.active{background:#1B3A6B;color:#fff;border-color:#1B3A6B}
+.cohort-chip:hover{border-color:#1B3A6B;color:#1B3A6B}
+
+
+/* ── Inline editing ── */
+.editable-row td { transition: background .15s; }
+.editable-row:hover td { background: #f0f9ff !important; }
+.status-sel {
+  padding: 3px 6px; border: 1.5px solid #cbd5e1; border-radius: 5px;
+  font-size: 11px; font-weight: 600; background: #fff; cursor: pointer;
+  min-width: 130px; color: #1e293b;
+}
+.status-sel:focus { outline: none; border-color: #0D7377; }
+.notes-inp {
+  padding: 3px 7px; border: 1.5px solid #cbd5e1; border-radius: 5px;
+  font-size: 11px; width: 100%; min-width: 120px; font-family: Arial, sans-serif;
+  color: #374151; background: #fff;
+}
+.notes-inp:focus { outline: none; border-color: #0D7377; }
+.save-flash { animation: flash .6s ease; }
+@keyframes flash { 0%{background:#dcfce7} 100%{background:inherit} }
+/* ── Export / bulk update bar ── */
+.action-bar {
+  background: #fff; border-radius: 8px; padding: 12px 16px;
+  margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.action-bar .al { font-size: 12px; color: #374151; flex: 1; min-width: 160px; }
+.action-bar .al strong { color: #1B3A6B; }
+.save-indicator {
+  font-size: 11px; font-weight: 700; padding: 4px 10px;
+  border-radius: 10px; background: #f0fdf4; color: #15803D;
+  border: 1px solid #86efac; display: none;
+}
+.save-indicator.show { display: inline-block; }
+/* ── Bulk update upload ── */
+.bulk-zone {
+  border: 2px dashed #94a3b8; border-radius: 8px; padding: 16px;
+  text-align: center; background: #f8fafc; cursor: pointer;
+  transition: .2s; margin-top: 10px;
+}
+.bulk-zone:hover,.bulk-zone.drag { border-color: #0D7377; background: #f0fdfc; }
+.bulk-zone p { font-size: 11px; color: #64748b; margin-top: 4px; }
+/* ── Shuffle ── */
+.shuffle-bar{background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.shuffle-bar .sl{font-size:12px;color:#374151;flex:1}
+.shuffle-bar .sl strong{color:#1B3A6B}
+.shuf-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;
+  background:#fef9c3;color:#854d0e;margin-left:6px}
+/* ── Scrollable table container ── */
+.tscroll{max-height:500px;overflow-y:auto}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>📊 CMP701 Digital Transformation — Marking Tracker</h1>
+    <p id="hdrSub">Dr. Tertsegha Anande, Module Leader · Ulster University QAHE · Cohort: <span id="hdrCohort"></span></p>
+  </div>
+  <button class="cohort-badge" onclick="showTab('upload',this)">⚙️ Manage Cohorts</button>
+</div>
+
+<div class="tabs">
+  <button class="tab on"  onclick="showTab('db',this)">📊 Dashboard</button>
+  <button class="tab"     onclick="showTab('mv',this)">🔍 Marker View</button>
+  <button class="tab"     onclick="showTab('c1',this)">📋 CW1 Tracker</button>
+  <button class="tab"     onclick="showTab('c2',this)">📄 CW2 Tracker</button>
+  <button class="tab"     onclick="showTab('ns',this)">⚠️ Non-Submissions</button>
+  <button class="tab"     onclick="showTab('al',this)">👥 Allocation</button>
+  <button class="tab"     onclick="showTab('upload',this)">🔄 New Cohort</button>
+</div>
+
+<!-- Dashboard -->
+<div id="db" class="pg on"></div>
+
+<!-- Marker View -->
+<div id="mv" class="pg">
+  <div class="action-bar">
+    <span class="al"><strong>Marker View</strong> — select your name, then edit Status and Notes directly in the table below. All changes save automatically to this device.</span>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('mv')">⬇ Export My List</button>
+  </div>
+  <div class="mvc">
+    <div>
+      <label>👤 Select Marker</label>
+      <select class="msel" id="msel" onchange="RMV()"></select>
+    </div>
+    <div class="mst" id="mst"></div>
+    <span class="save-indicator" id="mvSaveInd">✓ Saved</span>
+  </div>
+  <div id="mvt"></div>
+</div>
+
+<!-- CW1 Tracker -->
+<div id="c1" class="pg">
+  <div class="action-bar">
+    <span class="al"><strong>CW1 Tracker</strong> — click any Status or Notes cell to edit inline. Changes save automatically.</span>
+    <span class="save-indicator" id="c1SaveInd">✓ Saved</span>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('c1')">⬇ Export CW1 CSV</button>
+  </div>
+  <div class="frow">
+    <input class="sb" id="c1s" placeholder="🔍 Search student name…" oninput="RT('c1')">
+    <select class="fs" id="c1c" onchange="RT('c1')">
+      <option value="">All Campuses</option>
+      <option>London</option><option>Birmingham</option><option>Manchester</option>
+    </select>
+    <select class="fs" id="c1f" onchange="RT('c1')">
+      <option value="">All CW1 Statuses</option>
+      <option>Yes</option><option>Non-Submission</option><option>Not Required</option><option>EC1 Approved</option>
+    </select>
+    <span class="count-badge" id="c1count"></span>
+  </div>
+  <div id="c1t"></div>
+</div>
+
+<!-- CW2 Tracker -->
+<div id="c2" class="pg">
+  <div class="action-bar">
+    <span class="al"><strong>CW2 Tracker</strong> — click any Status or Notes cell to edit inline. Changes save automatically.</span>
+    <span class="save-indicator" id="c2SaveInd">✓ Saved</span>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('c2')">⬇ Export CW2 CSV</button>
+  </div>
+  <div class="frow">
+    <input class="sb" id="c2s" placeholder="🔍 Search student name…" oninput="RT('c2')">
+    <select class="fs" id="c2c" onchange="RT('c2')">
+      <option value="">All Campuses</option>
+      <option>London</option><option>Birmingham</option><option>Manchester</option>
+    </select>
+    <select class="fs" id="c2f" onchange="RT('c2')">
+      <option value="">All CW2 Statuses</option>
+      <option>Yes</option><option>Non-Submission</option><option>Not Required</option><option>EC1 Approved</option>
+    </select>
+    <span class="count-badge" id="c2count"></span>
+  </div>
+  <div id="c2t"></div>
+</div>
+
+<!-- Non-Submissions -->
+<div id="ns" class="pg"></div>
+
+<!-- Allocation -->
+<div id="al" class="pg"></div>
+
+<!-- Upload / New Cohort -->
+<div id="upload" class="pg">
+  <div class="steps">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Download Template</div></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">Fill Student List</div></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">Upload CSV</div></div>
+    <div class="step" id="step4"><div class="step-num">4</div><div class="step-label">Review Allocation</div></div>
+    <div class="step" id="step5"><div class="step-num">5</div><div class="step-label">Activate Cohort</div></div>
+  </div>
+
+  <!-- Step 1: Template -->
+  <div class="tmpl-box">
+    <h4>📥 Step 1 — Download the Student List Template</h4>
+    <p>Fill in one row per student. Required columns: <strong>Marker, Campus, Group, SessionType, StudentName</strong><br>
+    <strong>SessionType</strong> values: <code>Lecture</code> (2 hrs → 40%), <code>Seminar</code> (3 hrs → 60%), <code>Lecture & Seminar</code> (one marker covers full group → 100%)<br>
+    Add CW1 and CW2 deadlines in the cohort settings below.</p>
+    <div class="gap">
+      <button class="btn btn-primary" onclick="downloadTemplate()">⬇ Download Template CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadSampleData()">📄 Download Sample (current cohort)</button>
+    </div>
+  </div>
+
+  <!-- Cohort settings -->
+  <div class="alloc-card">
+    <h3>⚙️ Step 2 — Cohort Settings</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+      <div class="field"><label>Cohort Year</label><input id="upCohort" value="2026-27" placeholder="e.g. 2026-27"></div>
+      <div class="field"><label>Module Code</label><input id="upModule" value="CMP701" placeholder="e.g. CMP701"></div>
+      <div class="field"><label>Module Leader</label><input id="upLeader" value="Dr. Tertsegha Anande" placeholder="Name"></div>
+      <div class="field"><label>CW1 Title</label><input id="upCW1Title" value="Video Presentation (25%)"></div>
+      <div class="field"><label>CW1 Submission Deadline</label><input id="upCW1Sub" type="date"></div>
+      <div class="field"><label>CW1 Marking Deadline</label><input id="upCW1Mark" type="date"></div>
+      <div class="field"><label>CW2 Title</label><input id="upCW2Title" value="Written Report (75%)"></div>
+      <div class="field"><label>CW2 Submission Deadline</label><input id="upCW2Sub" type="date"></div>
+      <div class="field"><label>CW2 Marking Deadline</label><input id="upCW2Mark" type="date"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Upload -->
+  <div class="alloc-card">
+    <h3>📤 Step 3 — Upload Student List CSV</h3>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('csvFile').click()"
+         ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+      <div class="icon">📂</div>
+      <h3>Click to select CSV file or drag & drop here</h3>
+      <p>Accepts .csv files. Must include: Marker, Campus, Group, SessionType, StudentName</p>
+      <input type="file" id="csvFile" accept=".csv" onchange="handleFile(event)">
+    </div>
+    <div id="uploadMsg"></div>
+  </div>
+
+  <!-- Step 4: Preview allocation -->
+  <div id="allocPreview" style="display:none">
+    <div class="alloc-card">
+      <h3>👀 Step 4 — Review Auto-Generated Allocation</h3>
+      <div id="allocDetails"></div>
+      <div class="gap" style="margin-top:12px">
+        <button class="btn btn-green" onclick="activateCohort()">✅ Activate This Cohort</button>
+        <button class="btn btn-outline" onclick="document.getElementById('allocPreview').style.display='none'">✗ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Bulk status update -->
+  <div class="alloc-card" id="bulkUpdateCard">
+    <h3>📥 Bulk Status Update — Import Marking Progress</h3>
+    <div class="info" style="margin-bottom:10px">
+      Upload a CSV exported from this app with updated CW1/CW2 statuses and notes.
+      Student names are used to match rows — only <strong>Status</strong> and <strong>Notes</strong> columns are updated.
+    </div>
+    <div class="bulk-zone" id="bulkZone"
+         onclick="document.getElementById('bulkFile').click()"
+         ondrop="handleBulkDrop(event)"
+         ondragover="handleDragOver(event)"
+         ondragleave="handleBulkLeave(event)">
+      <div style="font-size:26px;margin-bottom:6px">📂</div>
+      <strong style="font-size:12px;color:#1B3A6B">Click to select or drag &amp; drop updated CSV</strong>
+      <p>Required columns: StudentName, CW1Status, CW1Notes, CW2Status, CW2Notes</p>
+      <input type="file" id="bulkFile" accept=".csv" style="display:none" onchange="handleBulkFile(event)">
+    </div>
+    <div id="bulkMsg" style="margin-top:8px"></div>
+  </div>
+  <!-- Saved cohorts -->
+  <div class="alloc-card">
+    <h3>📚 Saved Cohorts</h3>
+    <div id="cohortList"></div>
+  </div>
+</div>
+
+<!-- Cohort switch modal -->
+<div class="modal-bg" id="cohortModal">
+  <div class="modal">
+    <span class="close" onclick="document.getElementById('cohortModal').classList.remove('open')">✕</span>
+    <h2>Switch Cohort</h2>
+    <div id="modalCohortList"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ SEED DATA ═══════════════
+const SEED = {"cohort":"2025-26","module":"CMP701","students":[{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"ABDENNABI AHRRABI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Abdullah Al Mehedi Hasan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Abhishek Kumar","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Ahmed Asef Daiyan Chowdhury","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Asim Ghimire","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Binod Poudel","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Ebuka Samuel Jonas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Fahad Bin Khalid","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Gul Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Hamza Saeed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"Joshua Oghosasehe Ekogiawe","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Nasir Iqbal","campus":"London","group":"A","name":"KAZI MD RASHEDUR RAHMAN NAYEM","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Kohilan Chandramohan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Mahsam Javaid","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Md Nahidul Alam","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"MD RAISUL ISLAM RAKIB","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Mian Abbas Hussain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Minhajul Abedin","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Muhammad Ghufran","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Muhammad Hanan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Muhammad Usman Shoukat","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Muhammad Yawar Hussain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Muzaffar Ortikov","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Osazuwa Larry Iyamu","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"PARTH MANISHBHAI THANKI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Princy Shaileshbhai Baraiya","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Sahad Ali","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Shreya Rai","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"John Omokore","campus":"London","group":"A","name":"Zeeshan Yousaf","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"ABBAS MANSOOR","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Abrar Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Ahsan Riaz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"AJAY PANDEY","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Dilmurodkhon Bakhodirov","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"ESHETA PURKAYSTHA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"HEMANTH KUMAR POLIMERU","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"HUSSAIN HASSAN BUTT","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"IFEANYI ROBINSON ONUBOGU","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Jawad Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Lotus Bishwas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Md Forhad Hossain Rahi","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Md Raisul Islam","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Muhammad Adeem Mir","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Muhammad Ibrar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"MUHAMMAD KHUBAIB MUSHTAQ","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Muhammad Maaz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"MUHAMMAD SEEMAB","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Nouman Arshad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Rehman Afzal","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Sadham Shahul Hameed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Saeed Sarwar Anas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Selcuk Efe Cokcetin","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Tanvir Hossain Shawon","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"B","name":"Waseem Haider","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Ahmed Talal Sherani","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Gargi Roy Tushi","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Mamoon Rana","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"MD ASHIQUR RAHMAN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Md Jihadul Abedin","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"MUHAMMAD SUMAIR","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"MUHAMMAD UMAR WAHAB","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Musawar Bilal","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"OBINNA AGAFENACHUKWU OKONKWOAGU","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"RICHARD CHUKWUKA EZE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"STEPHEN CHINEDU ONA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Farooq Habib","campus":"London","group":"D","name":"Syed Nur Ishtiak","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Rabia Shaukat","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Raja Ali Yaqoob Janjua","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"REGINALD TOCHUKWU UKWUOMA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Sajawal Hussain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Sameer Ali Butt","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Sanjay Saru","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"SEFUNMI AYOMILEKAN AJAYI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"TAYYAB ASHFAQ MUGHAL","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Umm E Kulsoom","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Uwamose Okunbor","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"Waqar Ul Hassan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Asim Majeed","campus":"Birmingham","group":"A","name":"ZEESHAN MAHMOOD","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Adewale Abdul-Lateef Odukoya","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Arslan Ahmad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Arthur Nnamdi Mmadumbu","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Attique Manan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"CHINONSO SOTONYE THOKOZANI TONY-AMOS","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Ghulam Dastgir","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Hamza Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"MANMEET SINGH .","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Muhammad Haider Abbas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Muhammad Hasnain Haider","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Muhammad Luqman Ayub","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Muhammad Usman","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Mussawir Ali","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Najeed Ur Rehman","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"Osama Malik","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"A","name":"OSEREMEN PETER ADOMI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Adedamola Toluwalopemi Afolabi","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Ahmed Bin Riaz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Ahmed Fayyaz Butt","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Arooj Jamil","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Bethel Anozie","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Dipendra Chaudhary","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Eguono Precious Enyote","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Emeka Hilary Nwosu","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Ghulam Mustafa Haider","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Ifeanyi Ella Ugwu","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"IGONDA CHUKU","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Jasper Chinedu Nwangere","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"KELECHUKWU CHIKEZIRI TASIE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"KENECHUKWU CHUKWUJEKWU SAMUEL","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"KINGSLEY CHUKWUTEM INEH","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Md Imran Mir","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"MD SABBIR ISLAM","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Md. Golam Murtoza","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Miraj Ahmad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Muzammil Farooq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Numan Siddique","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Patrick Chinedum Godwin","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Ritesh Kumar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Sahil Singh Thakur","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Sana Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Shornali Akhi Shorna","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"SYED ALI LAJPAL","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Takrim Elahi Chowdhury","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"ZAIN ALI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"B","name":"Zain Shahid","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Abaid Ullah","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Abdul Muneeb Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Ayesha Zafar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"BENJAMIN NKEMAKONAM UCHE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Gboyega Alexander Kareem","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Hamza Khaliq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Jaspreet Kaur","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"Johnson Ifeanyi Opara","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Tertsegha Anande","campus":"Birmingham","group":"C","name":"KAMAL HASAN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"kenza mastal","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Mohsin Ullah","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Muhammad Adeel Ali Malik","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"MUHAMMAD NAUMAN AFZAL","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Muhammad Noor Hassan Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"NNAMDI SEUN SALAU-JOHN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Rajendra Rawal","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Richard Ndubuisi Ezeh","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"ROFIAT ADEOLA ADEYEWA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Shahan Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Sowaiba Ali","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Tanzilla Sultana","cw1Status":"Not Required","cw1Notes":"","cw2Status":"Not Required","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Victor Ugochukwu Nwike","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"C","name":"Waleed Riaz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Muhammad Siddique","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"PRAISE ELIJAH ARABAMBI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Rahul Jaysukhbhai Jogani","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Shahzaib Rashid","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Shahzaib Saeed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Sohail Hussain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Uchenna Igatta","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Umar Farooq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Muhammad Azeem Abbas","campus":"Birmingham","group":"D","name":"Uttam Tiwari","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Ali Haider","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Asharab Anwar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"BRAMWEL ORIANG AYUNGA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"DATARE-ERE BLESSING ESE NIEKETIEN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Hammad Saeed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"IFEANYI JUSTIN OKWUNKA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Kiran Aziz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Mahnoor Hashmi","cw1Status":"EC1 Approved","cw1Notes":"New Submission deadline - 17/04/2026","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Maryam Khodaparast Safideh","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Mohnish Tarachand Somai","cw1Status":"Not Required","cw1Notes":"","cw2Status":"Not Required","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Muhammad hamza Younas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"MUHAMMAD HAMZAH","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":"Muhammad Naveed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Goodluck Oguzie","campus":"Birmingham","group":"D","name":". Usman","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Muhammad Zubair Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Numan Bashir","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Qazi Abdul Moiz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"SAAD ALI","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Samreen Manahil","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Samyog Gautam","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Sardar Muhammad Qasim Malik","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Sidra Khadim","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"Wasim Shehzad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Najm Us Sama","campus":"Manchester","group":"A","name":"YUSUF OWOLABI SAULA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":". Huzaifa","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"BALAWAL HUSSAIN","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Basil Sajeev","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Hafiz Muhammad Arslan","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"HARIS SIDDIQUI","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Honey Shahzadi","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"JOSHUA CHINEDU EKE","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Khansa Kanwal","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Minhas Javaid","cw1Status":"Non-Submission","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Mohammad Ahmad Raza","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Mohib Ullah","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Mohtashim Ali","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Muhammad Haseeb","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Muhammad Saad","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Amira Ahmed","campus":"Manchester","group":"A","name":"Muhammad Saleem","cw1Status":"Yes","cw1Notes":"Temitope Adeyemo","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":". Mehwish","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Abdur Rehman","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Akashdeep Singh","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Ali Farhan Hassan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Amarachukwu Vanessa Anazodo","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Bikendra Chaudhary","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Bushra Afzal","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"CHIDUBEM FRANCIS NWIGWE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Ghazanfar Ahmed Gull","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"JOSEPH EWOMA AFORKEOGHENE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Laaraib Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"LOKESH RAGUL RAMAKRISHNAN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Hamza Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Hasnain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Hassan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Umair","cw1Status":"Not Required","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Umar Farooq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"MUHAMMAD UMER","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"MUHAMMAD YOUSAF","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Muhammad Zeeshan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Olasoji Daniel Ogundare","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Shizza Fatima","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"SUDHARSAN SANKARAN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"B","name":"Syed Mohsin Ali","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":". Abu Bakar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Abdul Haseeb Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Abdullah Sajjad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Amir Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Atta Ullah","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Awais Ahmed Sabir","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Chibueze Collins Azubuike","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"CHIEMELIE VICTOR OBIORA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"ETINOSA SAMUEL OTOGHILE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Hamad Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Hasan Ali Waqas","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Kashif Shahzad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Khubaib Amjad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Fahim Shahzad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Hashir Sarwar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Hassan Akhtar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Omer Farooq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"MUHAMMAD SHAH ZEB","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Umair","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Muhammad Zain","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"OSAYUWAMEN WILFORD OSAGIE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Pratichhya Mahat","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Sheikh Ali Raza","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Sujan Khadka","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Syed Moosa Raza","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Talal Hasnat Ahmad","cw1Status":"Not Required","cw1Notes":"","cw2Status":"Not Required","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Thaneshowar Joshi","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Umer Farooq","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Zarak Khan","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"C","name":"Zulqarnain Ali Qamar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":". Ruqaya","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Abdullah Al Mahmud","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"ADIL MOHAMMADARIF BUXMASTER","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"ADNAN SIDDIQUE","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Ahmed Sajjad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Cicel Aslam","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Ehtisham Riaz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Emeka Daniel Ikeorah","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Hadif Ahmad","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Hasnain Ali","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Hassan Raza","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Khawar Akram","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"MFON MICHAEL AKPAN-NNAH","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Muhammad Ahmad Abbasi","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Muhammad Azhar","cw1Status":"Non-Submission","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Muhammad Hamza Jamshaid","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Muhammad Shehran","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Naveed Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Oluwayomi Caleb Bamidele","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Saad Ahmed","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Sana Zafar","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"SIAM AZHAR","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"SREERAJ KANDATH","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"STEVEN ELEOJO ONOJA","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Tausifur Rahman Talha","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"Umar Bin Abdul Aziz","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""},{"marker":"Temitope Adeyemo","campus":"Manchester","group":"D","name":"WAJIH UR RAHMAN","cw1Status":"Yes","cw1Notes":"","cw2Status":"","cw2Notes":""}],"cw1Alloc":[{"campus":"London","groupSession":"A - Lecture","lecturer":"Nasir Iqbal","allocPct":0.4,"totalSubs":29,"allocated":11.6,"marked":11.0,"remaining":0.6000000000000014},{"campus":"London","groupSession":"A - Seminar","lecturer":"John Omokore","allocPct":0.6,"totalSubs":29,"allocated":17.4,"marked":17.0,"remaining":0.3999999999999986},{"campus":"London","groupSession":"B - Lecture & Seminar","lecturer":"Farooq Habib","allocPct":1.0,"totalSubs":25,"allocated":25.0,"marked":25.0,"remaining":0.0},{"campus":"London","groupSession":"D - Lecture & Seminar","lecturer":"Farooq Habib","allocPct":1.0,"totalSubs":12,"allocated":12.0,"marked":12.0,"remaining":0.0},{"campus":"Birmingham","groupSession":"A - Lecture","lecturer":"Asim Majeed","allocPct":0.4,"totalSubs":29,"allocated":11.6,"marked":11.0,"remaining":0.6000000000000014},{"campus":"Birmingham","groupSession":"A - Seminar","lecturer":"Tertsegha Anande","allocPct":0.6,"totalSubs":29,"allocated":17.4,"marked":16.0,"remaining":1.3999999999999986},{"campus":"Birmingham","groupSession":"B - Lecture & Seminar","lecturer":"Tertsegha Anande","allocPct":1.0,"totalSubs":30,"allocated":30.0,"marked":30.0,"remaining":0.0},{"campus":"Birmingham","groupSession":"C - Lecture","lecturer":"Tertsegha Anande","allocPct":0.4,"totalSubs":23,"allocated":9.200000000000001,"marked":9.0,"remaining":0.20000000000000107},{"campus":"Birmingham","groupSession":"C - Seminar","lecturer":"Goodluck Oguzie","allocPct":0.6,"totalSubs":23,"allocated":13.8,"marked":13.0,"remaining":0.7999999999999989},{"campus":"Birmingham","groupSession":"D - Lecture","lecturer":"Muhammad Azeem Abbas","allocPct":0.4,"totalSubs":23,"allocated":9.200000000000001,"marked":9.0,"remaining":0.20000000000000107},{"campus":"Birmingham","groupSession":"D - Seminar","lecturer":"Goodluck Oguzie","allocPct":0.6,"totalSubs":23,"allocated":13.8,"marked":10.0,"remaining":3.799999999999999},{"campus":"Manchester","groupSession":"A - Lecture","lecturer":"Najm Us Sama","allocPct":0.4,"totalSubs":25,"allocated":10.0,"marked":9.0,"remaining":1.0},{"campus":"Manchester","groupSession":"A - Seminar","lecturer":"Amira Ahmed","allocPct":0.6,"totalSubs":25,"allocated":15.0,"marked":14.0,"remaining":1.0},{"campus":"Manchester","groupSession":"B - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":24,"allocated":24.0,"marked":23.0,"remaining":1.0},{"campus":"Manchester","groupSession":"C - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":30,"allocated":30.0,"marked":29.0,"remaining":1.0},{"campus":"Manchester","groupSession":"D - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":27,"allocated":27.0,"marked":25.0,"remaining":2.0}],"cw2Alloc":[{"campus":"London","groupSession":"A - Lecture","lecturer":"Nasir Iqbal","allocPct":0.4,"totalSubs":29,"allocated":11.6,"marked":0,"remaining":11.6},{"campus":"London","groupSession":"A - Seminar","lecturer":"John Omokore","allocPct":0.6,"totalSubs":29,"allocated":17.4,"marked":0,"remaining":17.4},{"campus":"London","groupSession":"B - Lecture & Seminar","lecturer":"Farooq Habib","allocPct":1.0,"totalSubs":25,"allocated":25.0,"marked":0,"remaining":25.0},{"campus":"London","groupSession":"D - Lecture & Seminar","lecturer":"Farooq Habib","allocPct":1.0,"totalSubs":12,"allocated":12.0,"marked":0,"remaining":12.0},{"campus":"Birmingham","groupSession":"A - Lecture","lecturer":"Asim Majeed","allocPct":0.4,"totalSubs":29,"allocated":11.6,"marked":0,"remaining":11.6},{"campus":"Birmingham","groupSession":"A - Seminar","lecturer":"Tertsegha Anande","allocPct":0.6,"totalSubs":29,"allocated":17.4,"marked":0,"remaining":17.4},{"campus":"Birmingham","groupSession":"B - Lecture & Seminar","lecturer":"Tertsegha Anande","allocPct":1.0,"totalSubs":30,"allocated":30.0,"marked":0,"remaining":30.0},{"campus":"Birmingham","groupSession":"C - Lecture","lecturer":"Tertsegha Anande","allocPct":0.4,"totalSubs":23,"allocated":9.200000000000001,"marked":0,"remaining":9.200000000000001},{"campus":"Birmingham","groupSession":"C - Seminar","lecturer":"Goodluck Oguzie","allocPct":0.6,"totalSubs":23,"allocated":13.8,"marked":0,"remaining":13.8},{"campus":"Birmingham","groupSession":"D - Lecture","lecturer":"Muhammad Azeem Abbas","allocPct":0.4,"totalSubs":23,"allocated":9.200000000000001,"marked":0,"remaining":9.200000000000001},{"campus":"Birmingham","groupSession":"D - Seminar","lecturer":"Goodluck Oguzie","allocPct":0.6,"totalSubs":23,"allocated":13.8,"marked":0,"remaining":13.8},{"campus":"Manchester","groupSession":"A - Lecture","lecturer":"Najm Us Sama","allocPct":0.4,"totalSubs":25,"allocated":10.0,"marked":0,"remaining":10.0},{"campus":"Manchester","groupSession":"A - Seminar","lecturer":"Amira Ahmed","allocPct":0.6,"totalSubs":25,"allocated":15.0,"marked":0,"remaining":15.0},{"campus":"Manchester","groupSession":"B - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":24,"allocated":24.0,"marked":0,"remaining":24.0},{"campus":"Manchester","groupSession":"C - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":30,"allocated":30.0,"marked":0,"remaining":30.0},{"campus":"Manchester","groupSession":"D - Lecture & Seminar","lecturer":"Temitope Adeyemo","allocPct":1.0,"totalSubs":27,"allocated":27.0,"marked":0,"remaining":27.0}],"nonSubmissionsCW1":[{"surname":"Ahmad","otherNames":"Talal Hasnat","studentId":"b01045880","comment":"Student no longer taking the module. EC1 not applicable."},{"surname":"Azhar","otherNames":"Muhammad","studentId":"b01047458","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Hamzah","otherNames":"Muhammad","studentId":"b01046568","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Hashmi","otherNames":"Mahnoor","studentId":"b01043781","comment":"Non-submission due to Financial Hold. EC1 not applicable."},{"surname":"Javaid","otherNames":"Minhas","studentId":"b01039845","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Khadim","otherNames":"Sidra","studentId":"b01037066","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Khodaparast Safideh","otherNames":"Maryam","studentId":"b01046660","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Kumar","otherNames":"Abhishek","studentId":"b01046149","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Maniya","otherNames":"Hirenkumar Chhaganbhai","studentId":"b01040694","comment":"Student no longer taking the module. EC1 not applicable."},{"surname":"Ruqaya","otherNames":".","studentId":"b01046072","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Shaukat","otherNames":"Rabia","studentId":"b01040570","comment":"Student contacted but did not respond and did not submit EC1 application."},{"surname":"Somai","otherNames":"Mohnish Tarachand","studentId":"b01039336","comment":"Student on LOA. EC1 not applicable."},{"surname":"Sultana","otherNames":"Tanzilla","studentId":"b01048972","comment":"Student no longer taking the module. EC1 not applicable."},{"surname":"Umair","otherNames":"Muhammad","studentId":"b01045133","comment":"Student no longer taking the module. EC1 not applicable."},{"surname":"Usman","otherNames":"Muhammad","studentId":"b01042339","comment":"Student contacted but did not respond and did not submit EC1 application."}],"nonSubmissionsCW2":[{"name":"Tanzilla Sultana","campus":"Birmingham","group":"C","marker":"Goodluck Oguzie","status":"Not Required","studentId":"","notes":""},{"name":"Mohnish Tarachand Somai","campus":"Birmingham","group":"D","marker":"Goodluck Oguzie","status":"Not Required","studentId":"","notes":""},{"name":"Muhammad Umair","campus":"Manchester","group":"B","marker":"Temitope Adeyemo","status":"Not Required","studentId":"","notes":""},{"name":"Talal Hasnat Ahmad","campus":"Manchester","group":"C","marker":"Temitope Adeyemo","status":"Not Required","studentId":"","notes":""}]};
+
+// ═══════════════ STATE ═══════════════
+let cohorts = {}; // { key: {meta, students, cw1Alloc, cw2Alloc, nonSubmissionsCW1, nonSubmissionsCW2} }
+let activeCohort = '';
+let pendingCohort = null; // parsed upload waiting activation
+
+// ═══════════════ INIT ═══════════════
+(function init(){
+  // Load from localStorage or use seed
+  const saved = tryGet('cmp701_cohorts');
+  if(saved && Object.keys(saved).length > 0){
+    cohorts = saved;
+    activeCohort = tryGet('cmp701_active') || Object.keys(cohorts)[0];
+  } else {
+    const key = SEED.cohort || '2025-26';
+    cohorts[key] = SEED;
+    cohorts[key].meta = {
+      cohort: SEED.cohort || '2025-26',
+      module: SEED.module || 'CMP701',
+      leader: 'Dr. Tertsegha Anande',
+      cw1Title: 'Video Presentation (25%)',
+      cw1Sub: '13/03/2026', cw1Mark: '27/03/2026',
+      cw2Title: 'Written Report (75%)',
+      cw2Sub: '06/05/2026', cw2Mark: '20/05/2026',
+    };
+    activeCohort = key;
+    saveAll();
+  }
+  updateHeader();
+  initMV();
+  RDB();
+  renderCohortList();
+})();
+
+function D(){ return cohorts[activeCohort] || {}; }
+function tryGet(k){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;} }
+function saveAll(){ try{localStorage.setItem('cmp701_cohorts',JSON.stringify(cohorts));localStorage.setItem('cmp701_active',activeCohort);}catch(e){} }
+
+function updateHeader(){
+  const m = D().meta || {};
+  document.getElementById('hdrCohort').textContent = (m.cohort||activeCohort) + ' · ' + (m.module||'CMP701');
+}
+
+// ═══════════════ TABS ═══════════════
+function showTab(id,btn){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(id==='mv'){initMV();RMV();}
+  if(id==='c1')RT('c1');
+  if(id==='c2')RT('c2');
+  if(id==='ns')RNS();
+  if(id==='al')RAL();
+  if(id==='upload')renderCohortList();
+}
+
+// ═══════════════ HELPERS ═══════════════
+function bdg(s){
+  if(!s||s==='')return'<span class="b bp">Pending</span>';
+  if(s==='Yes')return'<span class="b by">✓ Yes</span>';
+  if(s==='Non-Submission')return'<span class="b bn">✗ Non-Sub</span>';
+  if(s==='Not Required')return'<span class="b br">— N/R</span>';
+  if(s==='EC1 Approved')return'<span class="b be">EC1</span>';
+  return`<span class="b bp">${s}</span>`;
+}
+function pb(m,a,c){
+  c=c||'#15803D';
+  var p=a>0?Math.min(100,m/a*100):0;
+  return'<div class="pb"><div class="pbr"><div class="pbf" style="width:'+p.toFixed(0)+'%;background:'+c+'"></div></div><span class="pp" style="color:'+c+'">'+p.toFixed(0)+'%</span></div>';
+}
+function fmt(n){return typeof n==='number'?n.toFixed(1):n;}
+function mkrs(){return[...new Set((D().students||[]).map(s=>s.marker))].sort();}
+
+// ═══════════════ DASHBOARD ═══════════════
+function RDB(){
+  const d=D(); const c1=d.cw1Alloc||[]; const m=d.meta||{};
+  const tA=c1.reduce((a,r)=>a+r.allocated,0);
+  const tM=c1.reduce((a,r)=>a+r.marked,0);
+  const tR=c1.reduce((a,r)=>a+r.remaining,0);
+  const pct=tA>0?(tM/tA*100).toFixed(1):0;
+  const ns1=(d.nonSubmissionsCW1||[]).length;
+  const ns2=(d.nonSubmissionsCW2||[]).length;
+
+  let h=`<div class="krow">
+    <div class="kpi"><div class="v">${(d.students||[]).length}</div><div class="l">Total Enrolment</div></div>
+    <div class="kpi tl"><div class="v">${Math.round(tA)}</div><div class="l">CW1 Allocated</div></div>
+    <div class="kpi gr"><div class="v">${Math.round(tM)}</div><div class="l">CW1 Marked</div></div>
+    <div class="kpi am"><div class="v">${Math.round(tR)}</div><div class="l">CW1 Remaining</div></div>
+    <div class="kpi bl"><div class="v">${pct}%</div><div class="l">CW1 Progress</div></div>
+    <div class="kpi rd"><div class="v">${ns1+ns2}</div><div class="l">Non-Submissions</div></div>
+  </div>`;
+
+  // Shuffle bar
+  const shuffled = d.shuffled || false;
+  h += `<div class="shuffle-bar">
+    <span class="sl">
+      <strong>🔀 Marking Allocation Shuffle</strong> — Randomly redistributes students within each split group (40%/60%) while keeping markers within their own groups.
+      ${shuffled ? '<span class="shuf-tag">✓ Shuffled</span>' : '<span class="shuf-tag" style="background:#f1f5f9;color:#64748b">Not yet shuffled</span>'}
+    </span>
+    <button class="btn btn-teal" onclick="shuffleAllocation()">🔀 Shuffle Now</button>
+    ${shuffled ? '<button class="btn btn-outline btn-sm" onclick="resetShuffle()">↺ Reset to Original</button>' : ''}
+  </div>`;
+
+  const cw1lbl = `📋 CW1 — ${m.cw1Title||'CW1'} | Sub: ${m.cw1Sub||'TBC'} | Marking: ${m.cw1Mark||'TBC'}`;
+  const cw2lbl = `📄 CW2 — ${m.cw2Title||'CW2'} | Sub: ${m.cw2Sub||'TBC'} | Marking: ${m.cw2Mark||'TBC'}`;
+  h += AT(c1, cw1lbl, '#1B3A6B', false, 'tot');
+  h += '<div style="height:18px"></div>';
+  h += AT(d.cw2Alloc||[], cw2lbl, '#1D4ED8', true, 'tot2');
+  document.getElementById('db').innerHTML = h;
+}
+
+function AT(alloc, title, col, isCW2, totCls){
+  let h=`<div class="sh" style="background:${col}">${title}</div>
+  <div class="tw"><div class="tscroll"><table>
+  <thead><tr><th class="L">Campus</th><th class="L">Group / Session</th><th class="L">Marker</th>
+  <th>Alloc%</th><th>Total Subs</th><th>Allocated</th><th>Marked</th><th>Remaining</th>
+  <th style="min-width:110px">Progress</th></tr></thead><tbody>`;
+  let pc=null;
+  alloc.forEach(r=>{
+    if(r.campus!==pc){h+=`<tr class="gh"><td colspan="9">${r.campus}</td></tr>`;pc=r.campus;}
+    const rc=r.remaining<=0?'#15803D':r.remaining>2?'#B91C1C':'#B45309';
+    h+=`<tr><td class="L">${r.campus}</td><td class="L">${r.groupSession}</td><td class="L">${r.lecturer}</td>
+    <td class="C">${Math.round(r.allocPct*100)}%</td><td class="C">${r.totalSubs}</td>
+    <td class="C">${fmt(r.allocated)}</td>
+    <td class="C">${isCW2?'—':r.marked}</td>
+    <td class="C" style="color:${isCW2?'#64748b':rc};font-weight:${isCW2?'400':'700'}">${isCW2?fmt(r.allocated):fmt(r.remaining)}</td>
+    <td>${isCW2?'<span style="color:#94a3b8;font-size:11px">Not yet commenced</span>':pb(r.marked,r.allocated,r.remaining<=0?'#15803D':col)}</td></tr>`;
+  });
+  const tA=alloc.reduce((a,r)=>a+r.allocated,0);
+  const tM=alloc.reduce((a,r)=>a+r.marked,0);
+  const tR=alloc.reduce((a,r)=>a+r.remaining,0);
+  h+=`<tr class="${totCls}"><td class="L" colspan="3" style="color:#fff">TOTALS</td>
+    <td class="C" style="color:#fff">—</td><td class="C" style="color:#fff">—</td>
+    <td class="C" style="color:#fff">${fmt(tA)}</td>
+    <td class="C" style="color:#fff">${isCW2?'—':fmt(tM)}</td>
+    <td class="C" style="color:#fff">${isCW2?fmt(tA):fmt(tR)}</td>
+    <td style="color:#fff">${isCW2?'—':pb(tM,tA,'#fff')}</td></tr>`;
+  return h+'</tbody></table></div></div>';
+}
+
+// ═══════════════ MARKER VIEW ═══════════════
+function initMV(){
+  const sel=document.getElementById('msel'); sel.innerHTML='';
+  mkrs().forEach(m=>{const o=document.createElement('option');o.value=o.textContent=m;sel.appendChild(o);});
+}
+function RMV(){
+  const m=document.getElementById('msel').value;
+  const allStudents=D().students||[];
+  const ss=allStudents.filter(s=>s.marker===m);
+  const c1s=ss.filter(s=>s.cw1Status==='Yes').length;
+  const c2s=ss.filter(s=>s.cw2Status==='Yes').length;
+  const ns=ss.filter(s=>s.cw1Status==='Non-Submission').length;
+  document.getElementById('mst').innerHTML=`
+    <div class="msc"><div class="n">${ss.length}</div><div class="l">Allocated</div></div>
+    <div class="msc"><div class="n" style="color:#15803D">${c1s}</div><div class="l">CW1 Submitted</div></div>
+    <div class="msc"><div class="n" style="color:#1D4ED8">${c2s}</div><div class="l">CW2 Submitted</div></div>
+    <div class="msc"><div class="n" style="color:#B91C1C">${ns}</div><div class="l">Non-Sub</div></div>`;
+  const grps={};
+  ss.forEach(s=>{const k=`${s.campus} — Group ${s.group}`;if(!grps[k])grps[k]=[];grps[k].push(s);});
+  const OPT_CW1='<option value="">—</option><option>Yes</option><option>Non-Submission</option><option>Not Required</option><option>EC1 Approved</option><option>Pending</option>';
+  const OPT_CW2='<option value="">—</option><option>Yes</option><option>Non-Submission</option><option>Not Required</option><option>EC1 Approved</option><option>Pending</option>';
+  let h=`<div class="sh" style="background:#0D7377">📋 Students Allocated to ${m} (${ss.length} total)
+    <span style="float:right;font-size:10px;font-weight:400;opacity:.8">✏️ Edit Status &amp; Notes inline — saves automatically</span></div>
+  <div class="tw"><div class="tscroll"><table><thead><tr>
+    <th style="width:24px">#</th><th class="L">Student Name</th>
+    <th>Campus</th><th>Grp</th>
+    <th style="min-width:140px">CW1 Status</th><th class="L" style="min-width:160px">CW1 Notes</th>
+    <th style="min-width:140px">CW2 Status</th><th class="L" style="min-width:160px">CW2 Notes</th>
+  </tr></thead><tbody>`;
+  let n=1;
+  Object.entries(grps).forEach(([g,arr])=>{
+    h+=`<tr class="gh"><td colspan="8">${g} — ${arr.length} student${arr.length!==1?'s':''}</td></tr>`;
+    arr.forEach(s=>{
+      const idx=allStudents.findIndex(x=>x.name===s.name&&x.campus===s.campus&&x.group===s.group);
+      const bg=s.cw1Status==='Non-Submission'?'#FEF2F2':s.cw1Status==='EC1 Approved'?'#FFFBEB':s.cw1Status==='Not Required'?'#F8FAFC':'';
+      const c1sel=OPT_CW1.replace(`<option>${s.cw1Status}</option>`,`<option selected>${s.cw1Status}</option>`);
+      const c2sel=OPT_CW2.replace(`<option>${s.cw2Status}</option>`,`<option selected>${s.cw2Status}</option>`);
+      h+=`<tr class="editable-row" id="erow-${idx}"${bg?` style="background:${bg}"`:''}><td class="C" style="color:#94a3b8;font-size:10px">${n++}</td>
+        <td class="L" style="font-weight:600">${s.name}</td>
+        <td class="C" style="font-size:11px">${s.campus}</td>
+        <td class="C" style="font-size:11px">Grp ${s.group}</td>
+        <td class="C"><select class="status-sel" onchange="updateStudent(${idx},'cw1Status',this.value,'mvSaveInd')">${c1sel}</select></td>
+        <td><input class="notes-inp" value="${(s.cw1Notes||'').replace(/"/g,'&quot;')}" placeholder="Add note…" onchange="updateStudent(${idx},'cw1Notes',this.value,'mvSaveInd')"></td>
+        <td class="C"><select class="status-sel" onchange="updateStudent(${idx},'cw2Status',this.value,'mvSaveInd')">${c2sel}</select></td>
+        <td><input class="notes-inp" value="${(s.cw2Notes||'').replace(/"/g,'&quot;')}" placeholder="Add note…" onchange="updateStudent(${idx},'cw2Notes',this.value,'mvSaveInd')"></td>
+      </tr>`;
+    });
+  });
+  document.getElementById('mvt').innerHTML=h+'</tbody></table></div></div>';
+}
+
+// ═══════════════ TRACKERS ═══════════════
+function RT(cw){
+  const q=document.getElementById(`${cw}s`).value.toLowerCase();
+  const ca=document.getElementById(`${cw}c`).value;
+  const sf=document.getElementById(`${cw}f`).value;
+  const sk=cw==='c1'?'cw1Status':'cw2Status';
+  const nk=cw==='c1'?'cw1Notes':'cw2Notes';
+  const allStudents=D().students||[];
+  const fl=allStudents.filter(s=>(!ca||s.campus===ca)&&(!sf||s[sk]===sf)&&(!q||s.name.toLowerCase().includes(q)));
+  document.getElementById(`${cw}count`).textContent=`${fl.length} student${fl.length!==1?'s':''}`;
+  const bm={};
+  fl.forEach(s=>{if(!bm[s.marker])bm[s.marker]=[];bm[s.marker].push(s);});
+  const col=cw==='c1'?'#1B3A6B':'#1D4ED8';
+  const m=D().meta||{};
+  const lb=cw==='c1'?`CW1 — ${m.cw1Title||'CW1'}`:`CW2 — ${m.cw2Title||'CW2'}`;
+  const OPT='<option value="">—</option><option>Yes</option><option>Non-Submission</option><option>Not Required</option><option>EC1 Approved</option><option>Pending</option>';
+  const saveInd=`${cw}SaveInd`;
+  let h=`<div class="sh" style="background:${col}">${lb} — ${fl.length} students shown
+    <span style="float:right;font-size:10px;font-weight:400;opacity:.8">✏️ Click Status or Notes to edit</span></div>
+  <div class="tw"><div class="tscroll"><table><thead><tr>
+    <th style="width:24px">#</th><th class="L">Student Name</th>
+    <th>Campus</th><th>Grp</th><th style="min-width:110px">Marker</th>
+    <th style="min-width:140px">Status</th><th class="L" style="min-width:170px">Notes</th>
+  </tr></thead><tbody>`;
+  let n=1;
+  if(Object.keys(bm).length===0){h+='<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">No students match your filters</td></tr>';}
+  Object.entries(bm).forEach(([mk,arr])=>{
+    h+=`<tr class="gh"><td colspan="7">${mk} — ${arr.length} student${arr.length!==1?'s':''}</td></tr>`;
+    arr.forEach(s=>{
+      const idx=allStudents.findIndex(x=>x.name===s.name&&x.campus===s.campus&&x.group===s.group);
+      const st=s[sk];
+      const bg=st==='Non-Submission'?'#FEF2F2':st==='EC1 Approved'?'#FFFBEB':st==='Not Required'?'#F8FAFC':'';
+      const sel=OPT.replace(`<option>${st}</option>`,`<option selected>${st}</option>`);
+      h+=`<tr class="editable-row" id="erow-${cw}-${idx}"${bg?` style="background:${bg}"`:''}><td class="C" style="color:#94a3b8;font-size:10px">${n++}</td>
+        <td class="L" style="font-weight:600">${s.name}</td>
+        <td class="C" style="font-size:11px">${s.campus}</td>
+        <td class="C" style="font-size:11px">Grp ${s.group}</td>
+        <td class="L" style="font-size:11px">${s.marker}</td>
+        <td class="C"><select class="status-sel" onchange="updateStudent(${idx},'${sk}',this.value,'${saveInd}')">${sel}</select></td>
+        <td><input class="notes-inp" value="${(s[nk]||'').replace(/"/g,'&quot;')}" placeholder="Add note…" onchange="updateStudent(${idx},'${nk}',this.value,'${saveInd}')"></td>
+      </tr>`;
+    });
+  });
+  document.getElementById(`${cw}t`).innerHTML=h+'</tbody></table></div></div>';
+}
+
+// ═══════════════ NON-SUBMISSIONS ═══════════════
+function RNS(){
+  const d=D(); const ns1=d.nonSubmissionsCW1||[]; const ns2=d.nonSubmissionsCW2||[];
+  let h=`<div class="krow">
+    <div class="kpi rd"><div class="v">${ns1.length}</div><div class="l">CW1 Non-Submissions</div></div>
+    <div class="kpi am"><div class="v">${ns2.length}</div><div class="l">CW2 Non-Submissions</div></div>
+    <div class="kpi"><div class="v">${ns1.length+ns2.length}</div><div class="l">Total</div></div>
+  </div>`;
+
+  // CW1 NS
+  h+=`<div class="sh" style="background:#B91C1C">⚠️ CW1 Non-Submissions — ${ns1.length} students</div>
+  <div class="tw"><table><thead><tr>
+    <th class="L">Surname</th><th class="L">Other Names</th><th>Student ID</th><th class="L">Comment / Reason</th>
+  </tr></thead><tbody>`;
+  if(ns1.length===0) h+='<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px">No CW1 non-submissions recorded</td></tr>';
+  ns1.forEach(r=>{ h+=`<tr><td class="L">${r.surname||r.name||''}</td><td class="L">${r.otherNames||''}</td><td class="C"><code>${r.studentId||'—'}</code></td><td class="L" style="font-size:11px">${r.comment||r.notes||'—'}</td></tr>`; });
+  h+='</tbody></table></div>';
+
+  // CW2 NS
+  h+=`<div style="height:16px"></div>
+  <div class="sh" style="background:#D97706">⚠️ CW2 Non-Submissions — ${ns2.length} students</div>
+  <div class="tw"><table><thead><tr>
+    <th class="L">Student Name</th><th>Campus</th><th>Group</th><th>Marker</th><th>Status</th><th class="L">Notes</th>
+  </tr></thead><tbody>`;
+  if(ns2.length===0) h+='<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">No CW2 non-submissions recorded yet</td></tr>';
+  ns2.forEach(r=>{ h+=`<tr><td class="L">${r.name||r.surname||''}</td><td class="C">${r.campus||'—'}</td><td class="C">${r.group||'—'}</td><td class="C" style="font-size:11px">${r.marker||'—'}</td><td class="C">${bdg(r.status)}</td><td class="L" style="font-size:11px;color:#64748b">${r.notes||r.comment||'—'}</td></tr>`; });
+  h+='</tbody></table></div>';
+  document.getElementById('ns').innerHTML=h;
+}
+
+// ═══════════════ ALLOCATION ═══════════════
+function RAL(){
+  const d=D(); const m=d.meta||{};
+  const all=[...(d.cw1Alloc||[])];
+  const markerMap={};
+  (d.students||[]).forEach(s=>{
+    if(!markerMap[s.marker])markerMap[s.marker]={campuses:new Set(),groups:new Set(),count:0,c1a:0,c1m:0,c1r:0,c2a:0};
+    markerMap[s.marker].campuses.add(s.campus);
+    markerMap[s.marker].groups.add(`${s.campus} Grp ${s.group}`);
+    markerMap[s.marker].count++;
+  });
+  all.forEach(r=>{
+    if(!markerMap[r.lecturer])markerMap[r.lecturer]={campuses:new Set(),groups:new Set(),count:0,c1a:0,c1m:0,c1r:0,c2a:0};
+    markerMap[r.lecturer].c1a+=r.allocated;
+    markerMap[r.lecturer].c1m+=r.marked||0;
+    markerMap[r.lecturer].c1r+=r.remaining||r.allocated;
+  });
+  (d.cw2Alloc||[]).forEach(r=>{
+    if(markerMap[r.lecturer]) markerMap[r.lecturer].c2a+=r.allocated;
+  });
+
+  let h=`<div class="sh" style="background:#1B3A6B">👥 Marker Allocation & Workload — Cohort ${m.cohort||activeCohort}</div>
+  <div class="tw"><div class="tscroll"><table><thead><tr>
+    <th class="L">Marker</th><th class="L">Campus(es)</th><th>Students</th>
+    <th>CW1 Alloc</th><th>CW1 Marked</th><th>CW1 Rem</th><th style="min-width:110px">CW1 Progress</th>
+    <th>CW2 Alloc</th>
+  </tr></thead><tbody>`;
+  Object.entries(markerMap).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([mk,v])=>{
+    const rc=v.c1r<=0?'#15803D':v.c1r>3?'#B91C1C':'#B45309';
+    h+=`<tr><td class="L" style="font-weight:600">${mk}</td>
+      <td class="L" style="font-size:11px">${[...v.campuses].join(', ')}</td>
+      <td class="C">${v.count}</td>
+      <td class="C">${fmt(v.c1a)}</td><td class="C">${fmt(v.c1m)}</td>
+      <td class="C" style="color:${rc};font-weight:700">${fmt(v.c1r)}</td>
+      <td>${pb(v.c1m,v.c1a,v.c1r<=0?'#15803D':'#1B3A6B')}</td>
+      <td class="C">${fmt(v.c2a)}</td></tr>`;
+  });
+  document.getElementById('al').innerHTML=h+'</tbody></table></div></div>';
+}
+
+// ═══════════════ UPLOAD & AUTO-ALLOCATION ═══════════════
+function downloadTemplate(){
+  const csv = [
+    'Marker,Campus,Group,SessionType,StudentName,StudentID,CW1Status,CW2Status,Notes',
+    'John Smith,London,A,Lecture,Student Name Here,b0100001,,,'
+  ].join('\n');
+  downloadCSV(csv,'cmp701_student_list_template.csv');
+}
+
+function downloadSampleData(){
+  const d=D();
+  const rows=['Marker,Campus,Group,SessionType,StudentName,StudentID,CW1Status,CW2Status,Notes'];
+  // Determine session type from alloc
+  const sessionMap={};
+  (d.cw1Alloc||[]).forEach(r=>{
+    const key=`${r.campus}|${r.groupSession.split(' - ')[0]}|${r.lecturer}`;
+    const sess=r.groupSession.includes('Lecture & Seminar')?'Lecture & Seminar':
+                r.groupSession.includes('Lecture')?'Lecture':'Seminar';
+    sessionMap[`${r.campus}|${r.lecturer}`]=sess;
+  });
+  (d.students||[]).forEach(s=>{
+    const sess=sessionMap[`${s.campus}|${s.marker}`]||'Lecture & Seminar';
+    rows.push(`"${s.marker}","${s.campus}","${s.group}","${sess}","${s.name}","","${s.cw1Status||''}","${s.cw2Status||''}","${s.cw1Notes||''}"`);
+  });
+  downloadCSV(rows.join('\n'),'cmp701_current_cohort_data.csv');
+}
+
+function downloadCSV(csv,fname){
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=fname; a.click();
+}
+
+function handleDragOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('drag');}
+function handleDragLeave(){document.getElementById('dropZone').classList.remove('drag');}
+function handleDrop(e){e.preventDefault();handleDragLeave();const f=e.dataTransfer.files[0];if(f)processCSV(f);}
+function handleFile(e){const f=e.target.files[0];if(f)processCSV(f);}
+
+function processCSV(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const text=e.target.result;
+      const parsed=parseCSV(text);
+      if(parsed.errors.length>0){
+        document.getElementById('uploadMsg').innerHTML=`<div class="error-box">⚠️ <strong>Errors found:</strong><br>${parsed.errors.join('<br>')}</div>`;
+        return;
+      }
+      if(parsed.students.length===0){
+        document.getElementById('uploadMsg').innerHTML='<div class="error-box">No student rows found. Check your CSV format.</div>';
+        return;
+      }
+      // Auto-allocate
+      const result = autoAllocate(parsed.students);
+      pendingCohort = result;
+      document.getElementById('uploadMsg').innerHTML=`<div class="success">✅ Parsed <strong>${parsed.students.length}</strong> students from ${parsed.groups} groups. Allocation preview below.</div>`;
+      renderAllocPreview(result);
+      // Step indicators
+      ['step1','step2','step3'].forEach(s=>{ document.getElementById(s).className='step done'; document.getElementById(s).querySelector('.step-num').textContent='✓'; });
+      document.getElementById('step4').className='step active';
+    }catch(err){
+      document.getElementById('uploadMsg').innerHTML=`<div class="error-box">Failed to parse CSV: ${err.message}</div>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  const errors=[];
+  if(lines.length<2){errors.push('File appears empty.');return{students:[],errors,groups:0};}
+  
+  // Parse header
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
+  const req=['marker','campus','group','sessiontype','studentname'];
+  req.forEach(r=>{ if(!headers.includes(r)) errors.push(`Missing required column: "${r}"`); });
+  if(errors.length>0) return{students:[],errors,groups:0};
+
+  const ci=k=>headers.indexOf(k);
+  const students=[]; const groups=new Set();
+  
+  lines.slice(1).forEach((line,i)=>{
+    if(!line.trim()) return;
+    const cols=parseCSVLine(line);
+    const get=k=>{ const v=cols[ci(k)]; return v?v.trim().replace(/^"|"$/g,''):''; };
+    const marker=get('marker'); const campus=get('campus');
+    const group=get('group'); const sess=get('sessiontype'); const name=get('studentname');
+    if(!marker||!campus||!group||!sess||!name) return;
+    // Validate session type
+    const validSess=['lecture','seminar','lecture & seminar'];
+    if(!validSess.includes(sess.toLowerCase())){
+      errors.push(`Row ${i+2}: Invalid SessionType "${sess}". Use: Lecture, Seminar, or Lecture & Seminar`);
+      return;
+    }
+    students.push({
+      marker, campus, group:group.toUpperCase(),
+      sessionType:sess, name,
+      studentId: get('studentid')||'',
+      cw1Status: get('cw1status')||'',
+      cw2Status: get('cw2status')||'',
+      cw1Notes:  get('notes')||'',
+      cw2Notes:  '',
+    });
+    groups.add(`${campus}|${group.toUpperCase()}`);
+  });
+  return{students,errors,groups:groups.size};
+}
+
+function parseCSVLine(line){
+  const result=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'&&!inQ){inQ=true;}
+    else if(line[i]==='"'&&inQ&&line[i+1]==='"'){cur+='"';i++;}
+    else if(line[i]==='"'&&inQ){inQ=false;}
+    else if(line[i]===','&&!inQ){result.push(cur.trim());cur='';}
+    else{cur+=line[i];}
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function autoAllocate(students){
+  // Group students by campus+group+marker+sessionType
+  const groups={};
+  students.forEach(s=>{
+    const gk=`${s.campus}||${s.group}`;
+    if(!groups[gk]) groups[gk]={campus:s.campus,group:s.group,markers:{}};
+    const mk=`${s.marker}||${s.sessionType}`;
+    if(!groups[gk].markers[mk]) groups[gk].markers[mk]={marker:s.marker,sessionType:s.sessionType,students:[]};
+    groups[gk].markers[mk].students.push(s);
+  });
+
+  // Build allocation rows
+  const cw1Alloc=[]; const cw2Alloc=[];
+  const campusOrder=['London','Birmingham','Manchester'];
+  const sortedGroups=Object.values(groups).sort((a,b)=>{
+    const ci=v=>campusOrder.indexOf(v)<0?99:campusOrder.indexOf(v);
+    return ci(a.campus)-ci(b.campus)||a.group.localeCompare(b.group);
+  });
+
+  sortedGroups.forEach(grp=>{
+    const markerEntries=Object.values(grp.markers);
+    // Count total subs for this group (exclude Non-Submission / Not Required)
+    const allStudents=markerEntries.flatMap(m=>m.students);
+    const totalSubs=allStudents.filter(s=>!['Non-Submission','Not Required'].includes(s.cw1Status)).length;
+
+    markerEntries.forEach(me=>{
+      const sess=me.sessionType.toLowerCase();
+      let allocPct;
+      if(sess==='lecture') allocPct=0.4;
+      else if(sess==='seminar') allocPct=0.6;
+      else allocPct=1.0; // lecture & seminar
+
+      const groupLabel=`${grp.group} - ${me.sessionType}`;
+      const allocated=Math.round(totalSubs*allocPct*10)/10;
+      
+      cw1Alloc.push({
+        campus:grp.campus, groupSession:groupLabel,
+        lecturer:me.marker, allocPct,
+        totalSubs, allocated, marked:0, remaining:allocated,
+      });
+      cw2Alloc.push({
+        campus:grp.campus, groupSession:groupLabel,
+        lecturer:me.marker, allocPct,
+        totalSubs, allocated, marked:0, remaining:allocated,
+      });
+    });
+  });
+
+  // Build final student list with marker assigned
+  const finalStudents=students.map(s=>({
+    marker:s.marker, campus:s.campus, group:s.group,
+    name:s.name, cw1Status:s.cw1Status||'',
+    cw1Notes:s.cw1Notes||'', cw2Status:s.cw2Status||'', cw2Notes:s.cw2Notes||'',
+  }));
+
+  // Detect non-submissions
+  const ns1=students.filter(s=>['Non-Submission','Not Required'].includes(s.cw1Status))
+    .map(s=>({name:s.name,campus:s.campus,group:s.group,marker:s.marker,status:s.cw1Status,studentId:s.studentId||'',notes:s.cw1Notes||''}));
+  const ns2=students.filter(s=>['Non-Submission','Not Required'].includes(s.cw2Status))
+    .map(s=>({name:s.name,campus:s.campus,group:s.group,marker:s.marker,status:s.cw2Status,studentId:s.studentId||'',notes:s.cw2Notes||''}));
+
+  return{students:finalStudents,cw1Alloc,cw2Alloc,nonSubmissionsCW1:ns1,nonSubmissionsCW2:ns2};
+}
+
+function renderAllocPreview(result){
+  const byCampus={};
+  result.cw1Alloc.forEach(r=>{
+    if(!byCampus[r.campus])byCampus[r.campus]={};
+    const gk=r.groupSession;
+    if(!byCampus[r.campus][gk])byCampus[r.campus][gk]=[];
+    byCampus[r.campus][gk].push(r);
+  });
+
+  const totalStudents=result.students.length;
+  const totalAlloc=result.cw1Alloc.reduce((a,r)=>a+r.allocated,0);
+  const markers=[...new Set(result.cw1Alloc.map(r=>r.lecturer))];
+
+  let h=`<div class="success">Auto-allocation complete: <strong>${totalStudents}</strong> students · <strong>${markers.length}</strong> markers · <strong>${result.cw1Alloc.length}</strong> allocation rows</div>`;
+  h+=`<div class="info">Allocation rules applied: <strong>Lecture only (2 hrs) → 40%</strong> · <strong>Seminar only (3 hrs) → 60%</strong> · <strong>Lecture & Seminar (sole marker) → 100%</strong></div>`;
+
+  Object.entries(byCampus).forEach(([campus,groups])=>{
+    h+=`<div class="alloc-group"><h4>🏫 ${campus}</h4>`;
+    Object.entries(groups).forEach(([grp,rows])=>{
+      rows.forEach(r=>{
+        h+=`<div class="alloc-row">
+          <span class="alloc-marker">${r.lecturer}</span>
+          <span class="alloc-pct">${r.groupSession}</span>
+          <span class="alloc-pct" style="background:#dcfce7;color:#15803D">${Math.round(r.allocPct*100)}%</span>
+          <span class="alloc-count">${fmt(r.allocated)} of ${r.totalSubs} scripts</span>
+        </div>`;
+      });
+    });
+    h+='</div>';
+  });
+  document.getElementById('allocDetails').innerHTML=h;
+  document.getElementById('allocPreview').style.display='block';
+  document.getElementById('allocPreview').scrollIntoView({behavior:'smooth'});
+}
+
+function activateCohort(){
+  if(!pendingCohort){alert('No pending cohort to activate.');return;}
+  const meta={
+    cohort: document.getElementById('upCohort').value||'New Cohort',
+    module: document.getElementById('upModule').value||'CMP701',
+    leader: document.getElementById('upLeader').value||'',
+    cw1Title: document.getElementById('upCW1Title').value||'CW1',
+    cw1Sub: document.getElementById('upCW1Sub').value||'TBC',
+    cw1Mark: document.getElementById('upCW1Mark').value||'TBC',
+    cw2Title: document.getElementById('upCW2Title').value||'CW2',
+    cw2Sub: document.getElementById('upCW2Sub').value||'TBC',
+    cw2Mark: document.getElementById('upCW2Mark').value||'TBC',
+  };
+  const key=meta.cohort;
+  cohorts[key]={...pendingCohort, meta, cohort:key, module:meta.module};
+  activeCohort=key;
+  saveAll();
+  pendingCohort=null;
+  document.getElementById('allocPreview').style.display='none';
+  document.getElementById('uploadMsg').innerHTML='';
+  ['step4'].forEach(s=>{document.getElementById(s).className='step done';document.getElementById(s).querySelector('.step-num').textContent='✓';});
+  document.getElementById('step5').className='step active';
+  updateHeader();
+  renderCohortList();
+  initMV();
+  RDB();
+  alert(`✅ Cohort "${key}" activated! Switching to dashboard.`);
+  showTab('db', document.querySelector('.tab'));
+  document.querySelector('.tab').classList.add('on');
+}
+
+
+// ═══════════════ SHUFFLE ALLOCATION ═══════════════
+function shuffleAllocation(){
+  var d = D();
+  if(!d.students || d.students.length === 0){
+    alert('No student data to shuffle.');
+    return;
+  }
+
+  // Work on a deep copy of students
+  var students = JSON.parse(JSON.stringify(d.students));
+
+  // Find all groups that have exactly 2 markers (40%/60% split)
+  // Build map: campus|group -> { markers: [{name, allocPct}], allStudents: [] }
+  var groupMap = {};
+  students.forEach(function(s){
+    var gk = s.campus + '||' + s.group;
+    if(!groupMap[gk]) groupMap[gk] = {campus:s.campus, group:s.group, students:[]};
+    groupMap[gk].students.push(s);
+  });
+
+  // Determine marker roles from cw1Alloc
+  var allocMap = {}; // campus|group -> [{marker, allocPct, sessionType}]
+  (d.cw1Alloc||[]).forEach(function(r){
+    var gk = r.campus + '||' + r.groupSession.split(' - ')[0];
+    if(!allocMap[gk]) allocMap[gk] = [];
+    allocMap[gk].push({marker: r.lecturer, allocPct: r.allocPct, session: r.groupSession});
+  });
+
+  var shuffledAny = false;
+
+  Object.keys(groupMap).forEach(function(gk){
+    var grp = groupMap[gk];
+    var allocs = allocMap[gk] || [];
+
+    // Only shuffle groups with exactly 2 markers at 40/60 split
+    var splitAllocs = allocs.filter(function(a){ return a.allocPct < 1.0; });
+    if(splitAllocs.length !== 2) return;
+
+    // Sort so Lecture (40%) is first, Seminar (60%) is second
+    splitAllocs.sort(function(a,b){ return a.allocPct - b.allocPct; });
+    var marker40 = splitAllocs[0].marker; // 40% marker
+    var marker60 = splitAllocs[1].marker; // 60% marker
+
+    // Separate submitting students from non-submitters
+    var submitters = grp.students.filter(function(s){
+      return !['Non-Submission','Not Required'].includes(s.cw1Status);
+    });
+    var nonSubs = grp.students.filter(function(s){
+      return ['Non-Submission','Not Required'].includes(s.cw1Status);
+    });
+
+    // Shuffle the submitters pool using Fisher-Yates
+    for(var i = submitters.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = submitters[i]; submitters[i] = submitters[j]; submitters[j] = tmp;
+    }
+
+    // Split: first 40% go to marker40, rest to marker60
+    var cut = Math.round(submitters.length * 0.4);
+    submitters.forEach(function(s, idx){
+      s.marker = idx < cut ? marker40 : marker60;
+    });
+
+    // Non-subs keep their original marker (leave unchanged)
+    shuffledAny = true;
+  });
+
+  if(!shuffledAny){
+    alert('No eligible groups found to shuffle (need groups with a 40/60 Lecture/Seminar split).');
+    return;
+  }
+
+  // Save original students if not already saved
+  if(!d.originalStudents){
+    cohorts[activeCohort].originalStudents = JSON.parse(JSON.stringify(d.students));
+  }
+
+  cohorts[activeCohort].students = students;
+  cohorts[activeCohort].shuffled = true;
+  saveAll();
+
+  // Rebuild allocation counts from shuffled student assignments
+  rebuildAllocCounts();
+
+  // Refresh views
+  RDB();
+  if(document.getElementById('mv').classList.contains('on')){ initMV(); RMV(); }
+  if(document.getElementById('c1').classList.contains('on')) RT('c1');
+  if(document.getElementById('c2').classList.contains('on')) RT('c2');
+  if(document.getElementById('al').classList.contains('on')) RAL();
+
+  // Show summary
+  var d2 = D();
+  var affected = [];
+  (d2.cw1Alloc||[]).forEach(function(r){
+    if(r.allocPct < 1.0) affected.push(r.campus + ' Grp ' + r.groupSession.split(' - ')[0] + ' → ' + r.lecturer + ' (' + Math.round(r.allocPct*100) + '%, ' + Math.round(r.allocated) + ' scripts)');
+  });
+  alert('\u2705 Allocation shuffled!\n\n' + 'Affected assignments:\n' + affected.join('\n') + '\n\nStudents in each split group have been randomly redistributed' + '\n keeping the 40/60 ratio intact.');
+}
+
+function resetShuffle(){
+  var d = D();
+  if(!d.originalStudents){
+    alert('No original allocation saved to reset to.');
+    return;
+  }
+  if(!confirm('Reset to the original pre-shuffle allocation?')) return;
+  cohorts[activeCohort].students = JSON.parse(JSON.stringify(d.originalStudents));
+  cohorts[activeCohort].shuffled = false;
+  delete cohorts[activeCohort].originalStudents;
+  saveAll();
+  rebuildAllocCounts();
+  RDB();
+  if(document.getElementById('mv').classList.contains('on')){ initMV(); RMV(); }
+  if(document.getElementById('c1').classList.contains('on')) RT('c1');
+  if(document.getElementById('c2').classList.contains('on')) RT('c2');
+}
+
+function rebuildAllocCounts(){
+  // After a shuffle, recalculate allocated/remaining per marker from actual student counts
+  var d = D();
+  var students = d.students || [];
+
+  // Build count map: campus|group|marker -> count of submitters
+  var countMap = {};
+  students.forEach(function(s){
+    if(['Non-Submission','Not Required'].includes(s.cw1Status)) return;
+    var k = s.campus + '||' + s.group + '||' + s.marker;
+    countMap[k] = (countMap[k]||0) + 1;
+  });
+
+  // Update cw1Alloc
+  (cohorts[activeCohort].cw1Alloc||[]).forEach(function(r){
+    var grp = r.groupSession.split(' - ')[0];
+    var k = r.campus + '||' + grp + '||' + r.lecturer;
+    if(countMap[k] !== undefined){
+      var prev = r.allocated;
+      r.allocated = countMap[k];
+      r.remaining = Math.max(0, r.allocated - (r.marked||0));
+    }
+  });
+
+  // Mirror same counts to cw2Alloc
+  (cohorts[activeCohort].cw2Alloc||[]).forEach(function(r){
+    var grp = r.groupSession.split(' - ')[0];
+    var k = r.campus + '||' + grp + '||' + r.lecturer;
+    if(countMap[k] !== undefined){
+      r.allocated = countMap[k];
+      r.remaining = Math.max(0, r.allocated - (r.marked||0));
+    }
+  });
+
+  saveAll();
+}
+
+
+// ═══════════════ INLINE EDIT & EXPORT ═══════════════
+
+function updateStudent(idx, field, value, saveIndId) {
+  var d = cohorts[activeCohort];
+  if (!d || !d.students || !d.students[idx]) return;
+  d.students[idx][field] = value;
+  // Update row background if status changed
+  var statusField = field === 'cw1Status' || field === 'cw2Status';
+  if (statusField) {
+    var st = field === 'cw1Status' ? d.students[idx].cw1Status : d.students[idx].cw2Status;
+    var bg = st==='Non-Submission'?'#FEF2F2':st==='EC1 Approved'?'#FFFBEB':st==='Not Required'?'#F8FAFC':'';
+    // Update row bg in MV and tracker views
+    ['erow-'+idx, 'erow-c1-'+idx, 'erow-c2-'+idx].forEach(function(id){
+      var row = document.getElementById(id);
+      if (row) row.style.background = bg;
+    });
+  }
+  // Rebuild allocation counts so dashboard progress updates
+  rebuildAllocCounts();
+  saveAll();
+  // Also refresh NS lists if status is a non-sub value
+  updateNSLists();
+  // Show save flash
+  flashSave(saveIndId);
+  // Refresh dashboard KPIs silently (don't re-render whole dashboard)
+  refreshDashboardKPIs();
+}
+
+function flashSave(indId) {
+  var el = document.getElementById(indId);
+  if (!el) return;
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 1800);
+}
+
+function refreshDashboardKPIs() {
+  // Only refresh if dashboard is visible
+  if (!document.getElementById('db').classList.contains('on')) return;
+  RDB();
+}
+
+function updateNSLists() {
+  // Rebuild non-submission lists from current student data
+  var students = cohorts[activeCohort].students || [];
+  cohorts[activeCohort].nonSubmissionsCW1 = students
+    .filter(function(s){ return ['Non-Submission','Not Required'].includes(s.cw1Status); })
+    .map(function(s){ return {name:s.name, campus:s.campus, group:s.group, marker:s.marker, status:s.cw1Status, studentId:s.studentId||'', notes:s.cw1Notes||''}; });
+  cohorts[activeCohort].nonSubmissionsCW2 = students
+    .filter(function(s){ return ['Non-Submission','Not Required'].includes(s.cw2Status); })
+    .map(function(s){ return {name:s.name, campus:s.campus, group:s.group, marker:s.marker, status:s.cw2Status, studentId:s.studentId||'', notes:s.cw2Notes||''}; });
+}
+
+function exportCSV(cw) {
+  var students = D().students || [];
+  var meta = D().meta || {};
+  var rows = ['StudentName,Marker,Campus,Group,CW1Status,CW1Notes,CW2Status,CW2Notes'];
+  students.forEach(function(s){
+    rows.push([
+      '"'+(s.name||'').replace(/"/g,'""')+'"',
+      '"'+(s.marker||'').replace(/"/g,'""')+'"',
+      s.campus||'', s.group||'',
+      s.cw1Status||'',
+      '"'+(s.cw1Notes||'').replace(/"/g,'""')+'"',
+      s.cw2Status||'',
+      '"'+(s.cw2Notes||'').replace(/"/g,'""')+'"'
+    ].join(','));
+  });
+  var cohortKey = (meta.cohort||activeCohort).replace(/[^a-zA-Z0-9-]/g,'_');
+  downloadCSV(rows.join('\n'), 'CMP701_'+cohortKey+'_'+(cw==='c1'?'CW1':'CW2')+'_Tracker.csv');
+}
+
+function exportFullCSV() {
+  exportCSV('full');
+}
+
+// ─── BULK STATUS UPDATE ───────────────────────────────────────────────────────
+function handleBulkDrop(e) {
+  e.preventDefault();
+  document.getElementById('bulkZone').classList.remove('drag');
+  var f = e.dataTransfer.files[0];
+  if (f) processBulkCSV(f);
+}
+function handleBulkLeave() { document.getElementById('bulkZone').classList.remove('drag'); }
+function handleBulkFile(e) { var f = e.target.files[0]; if (f) processBulkCSV(f); }
+
+function processBulkCSV(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var text = e.target.result;
+      var lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) { showBulkMsg('error', 'File appears empty.'); return; }
+
+      var headers = lines[0].split(',').map(function(h){ return h.trim().replace(/"/g,'').toLowerCase(); });
+      var nameIdx   = headers.indexOf('studentname');
+      var c1sIdx    = headers.indexOf('cw1status');
+      var c1nIdx    = headers.indexOf('cw1notes');
+      var c2sIdx    = headers.indexOf('cw2status');
+      var c2nIdx    = headers.indexOf('cw2notes');
+
+      if (nameIdx < 0) { showBulkMsg('error', 'Missing required column: StudentName'); return; }
+
+      var students = cohorts[activeCohort].students;
+      // Build name->index lookup
+      var lookup = {};
+      students.forEach(function(s, i){ lookup[s.name.toLowerCase().trim()] = i; });
+
+      var updated = 0, skipped = 0;
+      lines.slice(1).forEach(function(line){
+        if (!line.trim()) return;
+        var cols = parseCSVLine(line);
+        var name = (cols[nameIdx]||'').trim().replace(/^"|"$/g,'').toLowerCase();
+        var idx = lookup[name];
+        if (idx === undefined) { skipped++; return; }
+        if (c1sIdx >= 0 && cols[c1sIdx] !== undefined) {
+          var v = cols[c1sIdx].trim().replace(/^"|"$/g,'');
+          if (v) students[idx].cw1Status = v;
+        }
+        if (c1nIdx >= 0 && cols[c1nIdx] !== undefined) {
+          students[idx].cw1Notes = cols[c1nIdx].trim().replace(/^"|"$/g,'');
+        }
+        if (c2sIdx >= 0 && cols[c2sIdx] !== undefined) {
+          var v2 = cols[c2sIdx].trim().replace(/^"|"$/g,'');
+          if (v2) students[idx].cw2Status = v2;
+        }
+        if (c2nIdx >= 0 && cols[c2nIdx] !== undefined) {
+          students[idx].cw2Notes = cols[c2nIdx].trim().replace(/^"|"$/g,'');
+        }
+        updated++;
+      });
+
+      rebuildAllocCounts();
+      updateNSLists();
+      saveAll();
+
+      var msg = '\u2705 Updated <strong>'+updated+'</strong> students.';
+      if (skipped > 0) msg += ' <span style="color:#B45309">'+skipped+' rows skipped (name not found).</span>';
+      showBulkMsg('success', msg);
+
+      // Refresh active views
+      RDB();
+      if(document.getElementById('mv').classList.contains('on')){ initMV(); RMV(); }
+      if(document.getElementById('c1').classList.contains('on')) RT('c1');
+      if(document.getElementById('c2').classList.contains('on')) RT('c2');
+      if(document.getElementById('ns').classList.contains('on')) RNS();
+
+    } catch(err) {
+      showBulkMsg('error', 'Failed to parse CSV: '+err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showBulkMsg(type, msg) {
+  var cls = type==='error' ? 'error-box' : 'success';
+  document.getElementById('bulkMsg').innerHTML = '<div class="'+cls+'">'+msg+'</div>';
+}
+
+// ═══════════════ COHORT MANAGEMENT ═══════════════
+function renderCohortList(){
+  const keys=Object.keys(cohorts);
+  if(keys.length===0){document.getElementById('cohortList').innerHTML='<p style="color:#94a3b8;font-size:12px">No cohorts saved yet.</p>';return;}
+  let h='<div class="cohort-list">';
+  keys.forEach(k=>{
+    const m=cohorts[k].meta||{};
+    const students=(cohorts[k].students||[]).length;
+    h+=`<div style="background:#f8fafc;border:1.5px solid ${k===activeCohort?'#0D7377':'#e2e8f0'};border-radius:8px;padding:12px 16px;min-width:180px">
+      <div style="font-weight:700;font-size:13px;color:#1B3A6B">${k}</div>
+      <div style="font-size:11px;color:#64748b;margin:3px 0">${m.module||'CMP701'} · ${students} students</div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${k===activeCohort?'<span style="font-size:10px;font-weight:700;color:#0D7377">✓ ACTIVE</span>':
+        `<button class="btn btn-teal btn-sm" onclick="switchCohort('${k}')">Switch</button>`}
+        <button class="btn btn-outline btn-sm" onclick="deleteCohort('${k}')">Delete</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('cohortList').innerHTML=h+'</div>';
+}
+
+function switchCohort(key){
+  activeCohort=key; saveAll(); updateHeader(); initMV(); RDB(); renderCohortList();
+  alert(`Switched to cohort: ${key}`);
+}
+
+function deleteCohort(key){
+  if(!confirm(`Delete cohort "${key}"? This cannot be undone.`)) return;
+  delete cohorts[key];
+  if(activeCohort===key) activeCohort=Object.keys(cohorts)[0]||'';
+  saveAll(); updateHeader(); initMV(); RDB(); renderCohortList();
+}
+</script>
+</body>
+</html>
