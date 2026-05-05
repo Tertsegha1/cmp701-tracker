@@ -183,6 +183,16 @@ tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
   background:#fef9c3;color:#854d0e;margin-left:6px}
 /* ── Scrollable table container ── */
 .tscroll{max-height:500px;overflow-y:auto}
+/* ── Excel upload zone ── */
+.xl-zone{border:2px dashed #94a3b8;border-radius:8px;padding:14px 16px;background:#f8fafc;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:12px}
+.xl-zone:hover,.xl-zone.drag{border-color:#0D7377;background:#f0fdfc}
+.xl-zone .xl-icon{font-size:26px;flex-shrink:0}
+.xl-zone p{font-size:11px;color:#64748b;margin:2px 0 0}
+.xl-zone strong{font-size:12px;color:#1B3A6B}
+.xl-msg{font-size:12px;margin-top:8px;padding:8px 12px;border-radius:6px;display:none}
+.xl-msg.show{display:block}
+.xl-msg.ok{background:#f0fdf4;color:#15803D;border-left:3px solid #15803D}
+.xl-msg.err{background:#fef2f2;color:#B91C1C;border-left:3px solid #B91C1C}
 /* ── Auth / Login ── */
 #loginOverlay{position:fixed;inset:0;background:linear-gradient(135deg,#1B3A6B 0%,#0D7377 100%);z-index:9999;display:flex;align-items:center;justify-content:center}
 .login-card{background:#fff;border-radius:14px;padding:36px 32px;max-width:400px;width:90%;box-shadow:0 12px 48px rgba(0,0,0,.35);text-align:center}
@@ -200,6 +210,8 @@ tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 
@@ -260,8 +272,9 @@ tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
 <!-- Marker View -->
 <div id="mv" class="pg">
   <div class="action-bar">
-    <span class="al"><strong>Marker View</strong> — select your name, then edit Status and Notes directly in the table below. All changes save automatically to this device.</span>
-    <button class="btn btn-outline btn-sm" onclick="exportCSV('mv')">⬇ Export My List</button>
+    <span class="al"><strong>Marker View</strong> — update statuses directly in the table, or download your Excel template, fill it in, and upload it back below.</span>
+    <button class="btn btn-green btn-sm" onclick="downloadMarkerExcel()">⬇ Download Excel Template</button>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV('mv')">⬇ Export CSV</button>
   </div>
   <div class="mvc">
     <div>
@@ -270,6 +283,20 @@ tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
     </div>
     <div class="mst" id="mst"></div>
     <span class="save-indicator" id="mvSaveInd">✓ Saved</span>
+  </div>
+  <div style="margin-bottom:14px">
+    <div class="xl-zone" id="mvXlZone"
+         onclick="document.getElementById('mvXlFile').click()"
+         ondrop="handleMVXlDrop(event)" ondragover="handleMVXlOver(event)"
+         ondragleave="document.getElementById('mvXlZone').classList.remove('drag')">
+      <div class="xl-icon">📥</div>
+      <div>
+        <strong>Upload Completed Excel to Sync Tracker</strong>
+        <p>Click or drag &amp; drop your filled-in .xlsx here — updates Firebase instantly</p>
+      </div>
+      <input type="file" id="mvXlFile" accept=".xlsx,.xls" style="display:none" onchange="handleMVXlFile(event)">
+    </div>
+    <div class="xl-msg" id="mvXlMsg"></div>
   </div>
   <div id="mvt"></div>
 </div>
@@ -1354,6 +1381,150 @@ function updateNSLists() {
   cohorts[activeCohort].nonSubmissionsCW2 = students
     .filter(function(s){ return ['Non-Submission','Not Required'].includes(s.cw2Status); })
     .map(function(s){ return {name:s.name, campus:s.campus, group:s.group, marker:s.marker, status:s.cw2Status, studentId:s.studentId||'', notes:s.cw2Notes||''}; });
+}
+
+// ─── EXCEL DOWNLOAD ──────────────────────────────────────────────────────────
+function downloadMarkerExcel() {
+  var markerName = currentRole === 'marker' ? currentMarker : document.getElementById('msel').value;
+  if (!markerName) { alert('Please select a marker first.'); return; }
+  var meta = D().meta || {};
+  var students = (D().students || []).filter(function(s){ return s.marker === markerName; });
+  if (!students.length) { alert('No students found for this marker.'); return; }
+
+  var wb = XLSX.utils.book_new();
+
+  // Sheet 1: Instructions
+  var wsInstr = XLSX.utils.aoa_to_sheet([
+    ['CMP701 ' + (meta.module||'CMP701') + ' — ' + (meta.cohort||activeCohort) + ' Marking Sheet'],
+    ['Marker: ' + markerName],
+    ['Generated: ' + new Date().toLocaleDateString('en-GB')],
+    [],
+    ['INSTRUCTIONS'],
+    ['1. Go to the "Marking Status" sheet (tab at the bottom)'],
+    ['2. Click any cell in CW1 Status or CW2 Status and use the dropdown to select a value'],
+    ['3. Add any comments in the Notes columns'],
+    ['4. Do NOT edit StudentName, Campus or Group'],
+    ['5. Save the file, then upload it via the Marker View tab on the tracker'],
+    [],
+    ['Tracker: https://tertsegha1.github.io/cmp701-tracker/'],
+  ]);
+  wsInstr['!cols'] = [{wch:80}];
+  XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
+
+  // Sheet 2: Marking Status
+  var rows = [['StudentName','Campus','Group','CW1 Status','CW1 Notes','CW2 Status','CW2 Notes']];
+  students.forEach(function(s){
+    rows.push([s.name||'', s.campus||'', s.group||'', s.cw1Status||'', s.cw1Notes||'', s.cw2Status||'', s.cw2Notes||'']);
+  });
+  var wsData = XLSX.utils.aoa_to_sheet(rows);
+  wsData['!cols'] = [{wch:38},{wch:12},{wch:6},{wch:18},{wch:35},{wch:18},{wch:35}];
+  XLSX.utils.book_append_sheet(wb, wsData, 'Marking Status');
+
+  // Sheet 3: Valid values
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['Valid Status Values'],['Yes'],['Non-Submission'],['EC1 Approved'],['Not Required'],['(leave blank = Pending)'],
+  ]), 'Valid Values');
+
+  var safe     = markerName.replace(/[^a-zA-Z0-9]/g,'_');
+  var ck       = (meta.cohort||activeCohort).replace(/[^a-zA-Z0-9-]/g,'_');
+  var filename = 'CMP701_' + ck + '_' + safe + '.xlsx';
+  var lastRow  = students.length + 1;
+
+  // Use JSZip to inject dropdown validation into the worksheet XML
+  var wbArr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  JSZip.loadAsync(wbArr).then(function(zip) {
+    return zip.file('xl/worksheets/sheet2.xml').async('string').then(function(xml) {
+      // Remove any existing dataValidations, then insert before <pageMargins (correct OOXML order)
+      xml = xml.replace(/<dataValidations[\s\S]*?<\/dataValidations>/, '');
+      var list = '"Yes,Non-Submission,EC1 Approved,Not Required"';
+      var dv = function(col) {
+        return '<dataValidation type="list" allowBlank="1" showErrorMessage="1"' +
+          ' sqref="' + col + '2:' + col + lastRow + '"><formula1>' + list + '</formula1></dataValidation>';
+      };
+      var dvBlock = '<dataValidations count="2">' + dv('D') + dv('F') + '</dataValidations>';
+      if (xml.indexOf('<pageMargins') !== -1) {
+        xml = xml.replace('<pageMargins', dvBlock + '<pageMargins');
+      } else {
+        xml = xml.replace('</worksheet>', dvBlock + '</worksheet>');
+      }
+      zip.file('xl/worksheets/sheet2.xml', xml);
+      return zip.generateAsync({type:'arraybuffer', compression:'DEFLATE'});
+    });
+  }).then(function(buf) {
+    var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url  = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }).catch(function(err) {
+    console.error('Excel generation error:', err);
+    XLSX.writeFile(wb, filename);
+  });
+}
+
+// ─── EXCEL UPLOAD ────────────────────────────────────────────────────────────
+function handleMVXlOver(e){ e.preventDefault(); document.getElementById('mvXlZone').classList.add('drag'); }
+function handleMVXlDrop(e){
+  e.preventDefault(); document.getElementById('mvXlZone').classList.remove('drag');
+  var f = e.dataTransfer.files[0]; if(f) processMarkerExcel(f);
+}
+function handleMVXlFile(e){ var f = e.target.files[0]; if(f) processMarkerExcel(f); e.target.value=''; }
+
+function showMVUploadMsg(type, html){
+  var el = document.getElementById('mvXlMsg');
+  el.className = 'xl-msg show ' + (type==='error'?'err':'ok');
+  el.innerHTML = html;
+}
+
+function processMarkerExcel(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb2 = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      var sheetName = wb2.SheetNames.indexOf('Marking Status') >= 0 ? 'Marking Status' : wb2.SheetNames[0];
+      var csv = XLSX.utils.sheet_to_csv(wb2.Sheets[sheetName]);
+      var lines = csv.trim().split('\n');
+      if(lines.length < 2){ showMVUploadMsg('error','File appears empty — upload the template downloaded from this app.'); return; }
+      var hdrs = lines[0].split(',').map(function(h){ return h.trim().replace(/"/g,'').toLowerCase().replace(/\s+/g,''); });
+      var ni=hdrs.indexOf('studentname'), c1s=hdrs.indexOf('cw1status'), c1n=hdrs.indexOf('cw1notes'), c2s=hdrs.indexOf('cw2status'), c2n=hdrs.indexOf('cw2notes');
+      if(ni<0){ showMVUploadMsg('error','StudentName column not found — upload the template downloaded from this app.'); return; }
+      var VALID=['Yes','Non-Submission','EC1 Approved','Not Required',''];
+      var students = cohorts[activeCohort].students;
+      var lookup={};
+      students.forEach(function(s,i){ lookup[s.name.toLowerCase().trim()]=i; });
+      var updated=0, skipped=0, errors=[];
+      lines.slice(1).forEach(function(line){
+        if(!line.trim()) return;
+        var cols = parseCSVLine(line);
+        var name = (cols[ni]||'').trim().replace(/^"|"$/g,'');
+        if(!name) return;
+        var idx = lookup[name.toLowerCase()];
+        if(idx===undefined){ skipped++; return; }
+        if(currentRole==='marker' && students[idx].marker !== currentMarker){ skipped++; return; }
+        var v1=(c1s>=0?(cols[c1s]||'').trim().replace(/^"|"$/g,''):null);
+        var n1=(c1n>=0?(cols[c1n]||'').trim().replace(/^"|"$/g,''):null);
+        var v2=(c2s>=0?(cols[c2s]||'').trim().replace(/^"|"$/g,''):null);
+        var n2=(c2n>=0?(cols[c2n]||'').trim().replace(/^"|"$/g,''):null);
+        if(v1!==null && VALID.indexOf(v1)<0){ errors.push('Invalid CW1 status for "'+name+'": '+v1); return; }
+        if(v2!==null && VALID.indexOf(v2)<0){ errors.push('Invalid CW2 status for "'+name+'": '+v2); return; }
+        if(v1!==null) students[idx].cw1Status=v1;
+        if(n1!==null) students[idx].cw1Notes=n1;
+        if(v2!==null) students[idx].cw2Status=v2;
+        if(n2!==null) students[idx].cw2Notes=n2;
+        updated++;
+      });
+      if(updated>0){ rebuildAllocCounts(); updateNSLists(); saveAll(); RMV(); RDB(); }
+      var msg='';
+      if(errors.length) msg+='<strong>⚠ Errors:</strong><br>'+errors.join('<br>')+'<br>';
+      if(updated>0) msg+='✅ <strong>'+updated+'</strong> student'+(updated!==1?'s':'')+' updated in the tracker.';
+      else if(!errors.length) msg+='No changes detected — statuses in the file already match the tracker.';
+      if(skipped>0) msg+=' <span style="opacity:.7">('+skipped+' rows skipped)</span>';
+      showMVUploadMsg(errors.length&&!updated?'error':'ok', msg);
+    } catch(ex){ showMVUploadMsg('error','Could not read file: '+ex.message); }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function exportCSV(cw) {
