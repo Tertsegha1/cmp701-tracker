@@ -1430,8 +1430,9 @@ function downloadMarkerExcel() {
   var filename = 'CMP701_' + ck + '_' + safe + '.xlsx';
   var lastRow  = students.length + 1;
 
-  // Use JSZip to inject dropdown validation into the worksheet XML
-  var wbArr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  // bookSST:false forces inline strings — all cell data stays in sheet2.xml
+  // so JSZip only needs to touch that one file (no sharedStrings dependency)
+  var wbArr = XLSX.write(wb, {bookType:'xlsx', type:'array', bookSST:false});
   JSZip.loadAsync(wbArr).then(function(zip) {
     return zip.file('xl/worksheets/sheet2.xml').async('string').then(function(xml) {
       // Remove any existing dataValidations, then insert before <pageMargins (correct OOXML order)
@@ -1476,6 +1477,18 @@ function showMVUploadMsg(type, html){
   var el = document.getElementById('mvXlMsg');
   el.className = 'xl-msg show ' + (type==='error'?'err':'ok');
   el.innerHTML = html;
+}
+
+function parseCSVLine(line) {
+  var result=[], cur='', inQ=false;
+  for(var i=0;i<line.length;i++){
+    var ch=line[i];
+    if(ch==='"'){inQ=!inQ;}
+    else if(ch===','&&!inQ){result.push(cur);cur='';}
+    else{cur+=ch;}
+  }
+  result.push(cur);
+  return result;
 }
 
 function processMarkerExcel(file) {
