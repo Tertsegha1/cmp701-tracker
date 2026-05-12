@@ -1384,6 +1384,8 @@ function updateNSLists() {
 }
 
 // ─── EXCEL DOWNLOAD ──────────────────────────────────────────────────────────
+// Uses SpreadsheetML (plain XML) — no ZIP, no OOXML complexity, no repair warnings.
+// SheetJS is still used on the upload side to read the file back.
 function downloadMarkerExcel() {
   var markerName = currentRole === 'marker' ? currentMarker : document.getElementById('msel').value;
   if (!markerName) { alert('Please select a marker first.'); return; }
@@ -1391,62 +1393,56 @@ function downloadMarkerExcel() {
   var students = (D().students || []).filter(function(s){ return s.marker === markerName; });
   if (!students.length) { alert('No students found for this marker.'); return; }
 
-  var wb = XLSX.utils.book_new();
+  var esc = function(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  };
+  var cell = function(v) { return '<Cell><Data ss:Type="String">' + esc(v) + '</Data></Cell>'; };
+  var row  = function(cells) { return '<Row>' + cells + '</Row>\n'; };
+
+  var xml = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n' +
+    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
 
   // Sheet 1: Instructions
-  var wsInstr = XLSX.utils.aoa_to_sheet([
-    ['CMP701 ' + (meta.module||'CMP701') + ' — ' + (meta.cohort||activeCohort) + ' Marking Sheet'],
-    ['Marker: ' + markerName],
-    ['Generated: ' + new Date().toLocaleDateString('en-GB')],
-    [],
-    ['INSTRUCTIONS'],
-    ['1. Go to the "Marking Status" sheet (tab at the bottom)'],
-    ['2. In the CW1 Status and CW2 Status columns, type one of the values from the "Valid Values" sheet exactly'],
-    ['3. Add any comments in the Notes columns'],
-    ['4. Do NOT edit StudentName, Campus or Group'],
-    ['5. Save the file, then upload it via the upload zone on the Marker View tab'],
-    [],
-    ['Tracker: https://tertsegha1.github.io/cmp701-tracker/'],
-  ]);
-  wsInstr['!cols'] = [{wch:80}];
-  XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
+  xml += '<Worksheet ss:Name="Instructions"><Table>\n';
+  xml += row(cell('CMP701 ' + (meta.module||'CMP701') + ' — ' + (meta.cohort||activeCohort) + ' Marking Sheet'));
+  xml += row(cell('Marker: ' + markerName));
+  xml += row(cell('Generated: ' + new Date().toLocaleDateString('en-GB')));
+  xml += row('');
+  xml += row(cell('INSTRUCTIONS'));
+  xml += row(cell('1. Click the "Marking Status" tab at the bottom of this file'));
+  xml += row(cell('2. Update CW1 Status and CW2 Status for each student'));
+  xml += row(cell('3. Valid values (type exactly): Yes | Non-Submission | EC1 Approved | Not Required | (blank = Pending)'));
+  xml += row(cell('4. Add comments in the Notes columns if needed'));
+  xml += row(cell('5. Do NOT edit StudentName, Campus or Group'));
+  xml += row(cell('6. Save the file, then upload it via the Marker View on the tracker'));
+  xml += row('');
+  xml += row(cell('Tracker: https://tertsegha1.github.io/cmp701-tracker/'));
+  xml += '</Table></Worksheet>\n';
 
-  // Sheet 2: Marking Status — student rows pre-populated
-  var rows = [['StudentName','Campus','Group','CW1 Status','CW1 Notes','CW2 Status','CW2 Notes']];
-  students.forEach(function(s){
-    rows.push([
-      s.name   || '',
-      s.campus || '',
-      s.group  || '',
-      s.cw1Status || '',
-      s.cw1Notes  || '',
-      s.cw2Status || '',
-      s.cw2Notes  || ''
-    ]);
+  // Sheet 2: Marking Status
+  xml += '<Worksheet ss:Name="Marking Status"><Table>\n';
+  xml += row(cell('StudentName')+cell('Campus')+cell('Group')+cell('CW1 Status')+cell('CW1 Notes')+cell('CW2 Status')+cell('CW2 Notes'));
+  students.forEach(function(s) {
+    xml += row(cell(s.name)+cell(s.campus)+cell(s.group)+cell(s.cw1Status)+cell(s.cw1Notes)+cell(s.cw2Status)+cell(s.cw2Notes));
   });
-  var wsData = XLSX.utils.aoa_to_sheet(rows);
-  wsData['!cols'] = [{wch:38},{wch:12},{wch:6},{wch:18},{wch:35},{wch:18},{wch:35}];
-  XLSX.utils.book_append_sheet(wb, wsData, 'Marking Status');
+  xml += '</Table></Worksheet>\n';
 
-  // Sheet 3: Valid values reference
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Valid Status Values — use these exactly in CW1/CW2 Status columns'],
-    ['Yes'],
-    ['Non-Submission'],
-    ['EC1 Approved'],
-    ['Not Required'],
-    ['(leave blank if not yet marked)'],
-  ]), 'Valid Values');
+  // Sheet 3: Valid values
+  xml += '<Worksheet ss:Name="Valid Values"><Table>\n';
+  xml += row(cell('Valid Status Values — type these exactly into CW1/CW2 Status columns'));
+  ['Yes','Non-Submission','EC1 Approved','Not Required'].forEach(function(v){ xml += row(cell(v)); });
+  xml += row(cell('(leave blank = Pending)'));
+  xml += '</Table></Worksheet>\n';
 
-  // Trigger download via Blob — most reliable cross-browser method
-  var safe     = markerName.replace(/[^a-zA-Z0-9]/g, '_');
-  var ck       = (meta.cohort || activeCohort).replace(/[^a-zA-Z0-9-]/g, '_');
-  var filename = 'CMP701_' + ck + '_' + safe + '.xlsx';
-  var wbBytes  = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-  var blob     = new Blob([wbBytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  var url      = URL.createObjectURL(blob);
-  var a        = document.createElement('a');
-  a.href = url; a.download = filename;
+  xml += '</Workbook>';
+
+  var safe = markerName.replace(/[^a-zA-Z0-9]/g, '_');
+  var ck   = (meta.cohort || activeCohort).replace(/[^a-zA-Z0-9-]/g, '_');
+  var blob = new Blob([xml], {type:'application/vnd.ms-excel;charset=utf-8'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = 'CMP701_' + ck + '_' + safe + '.xls';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
