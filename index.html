@@ -211,6 +211,7 @@ tr.tot2 td{background:#1D4ED8!important;color:#fff!important;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 
@@ -1382,7 +1383,7 @@ function updateNSLists() {
     .map(function(s){ return {name:s.name, campus:s.campus, group:s.group, marker:s.marker, status:s.cw2Status, studentId:s.studentId||'', notes:s.cw2Notes||''}; });
 }
 
-// ─── EXCEL DOWNLOAD ──────────────────────────────────────────────────────────
+// ─── EXCEL DOWNLOAD — hand-built OOXML + JSZip (bypasses SheetJS write bugs) ─
 function downloadMarkerExcel() {
   var markerName = currentRole === 'marker' ? currentMarker : document.getElementById('msel').value;
   if (!markerName) { alert('Please select a marker first.'); return; }
@@ -1390,52 +1391,123 @@ function downloadMarkerExcel() {
   var students = (D().students || []).filter(function(s){ return s.marker === markerName; });
   if (!students.length) { alert('No students found for this marker.'); return; }
 
-  var wb = XLSX.utils.book_new();
+  // XML-escape any value going into element content
+  var esc = function(v) {
+    return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  };
 
-  // Sheet 1: Instructions
-  var wsInstr = XLSX.utils.aoa_to_sheet([
-    ['CMP701 ' + (meta.module||'CMP701') + ' — ' + (meta.cohort||activeCohort) + ' Marking Sheet'],
-    ['Marker: ' + markerName],
-    ['Generated: ' + new Date().toLocaleDateString('en-GB')],
+  // Build a worksheet XML string from a 2-D array (all values written as inline strings)
+  var COLS = ['A','B','C','D','E','F','G','H'];
+  var makeWS = function(grid) {
+    var out = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    grid.forEach(function(rowArr, ri) {
+      out += '<row r="'+(ri+1)+'">';
+      rowArr.forEach(function(val, ci) {
+        if (val !== null && val !== undefined && val !== '') {
+          out += '<c r="'+COLS[ci]+(ri+1)+'" t="inlineStr"><is><t>'+esc(val)+'</t></is></c>';
+        }
+      });
+      out += '</row>';
+    });
+    return out + '</sheetData></worksheet>';
+  };
+
+  // Sheet grids
+  var instrGrid = [
+    ['CMP701 '+(meta.module||'CMP701')+' — '+(meta.cohort||activeCohort)+' Marking Sheet'],
+    ['Marker: '+markerName],
+    ['Generated: '+new Date().toLocaleDateString('en-GB')],
     [],
     ['INSTRUCTIONS'],
-    ['1. Click the "Marking Status" tab at the bottom'],
+    ['1. Click the Marking Status tab at the bottom of this file'],
     ['2. Update CW1 Status and CW2 Status for each student'],
     ['3. Valid values (type exactly): Yes | Non-Submission | EC1 Approved | Not Required'],
-    ['4. Add comments in the Notes columns if needed'],
+    ['4. Add any comments in the Notes columns'],
     ['5. Do NOT edit StudentName, Campus or Group'],
-    ['6. Save the file, then upload it via the Marker View on the tracker'],
+    ['6. Save the file and upload it via the Marker View on the tracker'],
     [],
     ['Tracker: https://tertsegha1.github.io/cmp701-tracker/'],
-  ]);
-  wsInstr['!cols'] = [{wch:80}];
-  XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
-
-  // Sheet 2: Marking Status
-  var rows = [['StudentName','Campus','Group','CW1 Status','CW1 Notes','CW2 Status','CW2 Notes']];
+  ];
+  var statusGrid = [
+    ['StudentName','Campus','Group','CW1 Status','CW1 Notes','CW2 Status','CW2 Notes']
+  ];
   students.forEach(function(s){
-    rows.push([s.name||'', s.campus||'', s.group||'', s.cw1Status||'', s.cw1Notes||'', s.cw2Status||'', s.cw2Notes||'']);
+    statusGrid.push([s.name||'',s.campus||'',s.group||'',s.cw1Status||'',s.cw1Notes||'',s.cw2Status||'',s.cw2Notes||'']);
   });
-  var wsData = XLSX.utils.aoa_to_sheet(rows);
-  wsData['!cols'] = [{wch:38},{wch:12},{wch:6},{wch:18},{wch:35},{wch:18},{wch:35}];
-  XLSX.utils.book_append_sheet(wb, wsData, 'Marking Status');
-
-  // Sheet 3: Valid values
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Valid Status Values — type these exactly into CW1/CW2 Status columns'],
+  var validGrid = [
+    ['Valid Status Values — type these exactly into the Status columns'],
     ['Yes'],['Non-Submission'],['EC1 Approved'],['Not Required'],['(leave blank = Pending)'],
-  ]), 'Valid Values');
+  ];
 
-  var safe    = markerName.replace(/[^a-zA-Z0-9]/g, '_');
-  var ck      = (meta.cohort || activeCohort).replace(/[^a-zA-Z0-9-]/g, '_');
-  var bytes   = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-  var blob    = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  var url     = URL.createObjectURL(blob);
-  var a       = document.createElement('a');
-  a.href = url; a.download = 'CMP701_' + ck + '_' + safe + '.xlsx';
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Minimal OOXML package structure
+  var pkg = {
+    '[Content_Types].xml':
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+      '</Types>',
+
+    '_rels/.rels':
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+      '</Relationships>',
+
+    'xl/workbook.xml':
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'+
+      ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+      '<sheets>'+
+      '<sheet name="Instructions" sheetId="1" r:id="rId1"/>'+
+      '<sheet name="Marking Status" sheetId="2" r:id="rId2"/>'+
+      '<sheet name="Valid Values" sheetId="3" r:id="rId3"/>'+
+      '</sheets></workbook>',
+
+    'xl/_rels/workbook.xml.rels':
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'+
+      '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>'+
+      '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+      '</Relationships>',
+
+    'xl/styles.xml':
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'+
+      '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'+
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'+
+      '</styleSheet>',
+
+    'xl/worksheets/sheet1.xml': makeWS(instrGrid),
+    'xl/worksheets/sheet2.xml': makeWS(statusGrid),
+    'xl/worksheets/sheet3.xml': makeWS(validGrid),
+  };
+
+  var zip = new JSZip();
+  Object.keys(pkg).forEach(function(path){ zip.file(path, pkg[path]); });
+
+  var safe = markerName.replace(/[^a-zA-Z0-9]/g,'_');
+  var ck   = (meta.cohort||activeCohort).replace(/[^a-zA-Z0-9-]/g,'_');
+  zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
+    .then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'CMP701_'+ck+'_'+safe+'.xlsx';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
 }
 
 // ─── EXCEL UPLOAD ────────────────────────────────────────────────────────────
