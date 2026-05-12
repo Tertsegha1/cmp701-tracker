@@ -1401,68 +1401,55 @@ function downloadMarkerExcel() {
     [],
     ['INSTRUCTIONS'],
     ['1. Go to the "Marking Status" sheet (tab at the bottom)'],
-    ['2. Click any cell in CW1 Status or CW2 Status and use the dropdown to select a value'],
+    ['2. In the CW1 Status and CW2 Status columns, type one of the values from the "Valid Values" sheet exactly'],
     ['3. Add any comments in the Notes columns'],
     ['4. Do NOT edit StudentName, Campus or Group'],
-    ['5. Save the file, then upload it via the Marker View tab on the tracker'],
+    ['5. Save the file, then upload it via the upload zone on the Marker View tab'],
     [],
     ['Tracker: https://tertsegha1.github.io/cmp701-tracker/'],
   ]);
   wsInstr['!cols'] = [{wch:80}];
   XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
 
-  // Sheet 2: Marking Status
+  // Sheet 2: Marking Status — student rows pre-populated
   var rows = [['StudentName','Campus','Group','CW1 Status','CW1 Notes','CW2 Status','CW2 Notes']];
   students.forEach(function(s){
-    rows.push([s.name||'', s.campus||'', s.group||'', s.cw1Status||'', s.cw1Notes||'', s.cw2Status||'', s.cw2Notes||'']);
+    rows.push([
+      s.name   || '',
+      s.campus || '',
+      s.group  || '',
+      s.cw1Status || '',
+      s.cw1Notes  || '',
+      s.cw2Status || '',
+      s.cw2Notes  || ''
+    ]);
   });
   var wsData = XLSX.utils.aoa_to_sheet(rows);
   wsData['!cols'] = [{wch:38},{wch:12},{wch:6},{wch:18},{wch:35},{wch:18},{wch:35}];
   XLSX.utils.book_append_sheet(wb, wsData, 'Marking Status');
 
-  // Sheet 3: Valid values
+  // Sheet 3: Valid values reference
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ['Valid Status Values'],['Yes'],['Non-Submission'],['EC1 Approved'],['Not Required'],['(leave blank = Pending)'],
+    ['Valid Status Values — use these exactly in CW1/CW2 Status columns'],
+    ['Yes'],
+    ['Non-Submission'],
+    ['EC1 Approved'],
+    ['Not Required'],
+    ['(leave blank if not yet marked)'],
   ]), 'Valid Values');
 
-  var safe     = markerName.replace(/[^a-zA-Z0-9]/g,'_');
-  var ck       = (meta.cohort||activeCohort).replace(/[^a-zA-Z0-9-]/g,'_');
+  // Trigger download via Blob — most reliable cross-browser method
+  var safe     = markerName.replace(/[^a-zA-Z0-9]/g, '_');
+  var ck       = (meta.cohort || activeCohort).replace(/[^a-zA-Z0-9-]/g, '_');
   var filename = 'CMP701_' + ck + '_' + safe + '.xlsx';
-  var lastRow  = students.length + 1;
-
-  // bookSST:false forces inline strings — all cell data stays in sheet2.xml
-  // so JSZip only needs to touch that one file (no sharedStrings dependency)
-  var wbArr = XLSX.write(wb, {bookType:'xlsx', type:'array', bookSST:false});
-  JSZip.loadAsync(wbArr).then(function(zip) {
-    return zip.file('xl/worksheets/sheet2.xml').async('string').then(function(xml) {
-      // Remove any existing dataValidations, then insert before <pageMargins (correct OOXML order)
-      xml = xml.replace(/<dataValidations[\s\S]*?<\/dataValidations>/, '');
-      var list = '"Yes,Non-Submission,EC1 Approved,Not Required"';
-      var dv = function(col) {
-        return '<dataValidation type="list" allowBlank="1" showErrorMessage="1"' +
-          ' sqref="' + col + '2:' + col + lastRow + '"><formula1>' + list + '</formula1></dataValidation>';
-      };
-      var dvBlock = '<dataValidations count="2">' + dv('D') + dv('F') + '</dataValidations>';
-      if (xml.indexOf('<pageMargins') !== -1) {
-        xml = xml.replace('<pageMargins', dvBlock + '<pageMargins');
-      } else {
-        xml = xml.replace('</worksheet>', dvBlock + '</worksheet>');
-      }
-      zip.file('xl/worksheets/sheet2.xml', xml);
-      return zip.generateAsync({type:'arraybuffer', compression:'DEFLATE'});
-    });
-  }).then(function(buf) {
-    var blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    var url  = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }).catch(function(err) {
-    console.error('Excel generation error:', err);
-    XLSX.writeFile(wb, filename);
-  });
+  var wbBytes  = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  var blob     = new Blob([wbBytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url      = URL.createObjectURL(blob);
+  var a        = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ─── EXCEL UPLOAD ────────────────────────────────────────────────────────────
