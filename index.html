@@ -620,6 +620,8 @@ fbDB.ref('cmp701').on('value',function(snap){
     cohorts=data.cohorts;
     activeCohort=data.active||Object.keys(cohorts)[0];
     try{localStorage.setItem('cmp701_cohorts',JSON.stringify(cohorts));localStorage.setItem('cmp701_active',activeCohort);}catch(e){}
+    // Recompute marked/remaining from live student statuses (fixes stale counts in Firebase)
+    rebuildAllocCounts();
     updateHeader();initMV();RDB();renderCohortList();
     var pid=(document.querySelector('.pg.on')||{}).id;
     if(pid==='mv')RMV();
@@ -687,11 +689,15 @@ function mkrs(){return[...new Set((D().students||[]).map(s=>s.marker))].sort();}
 
 // ═══════════════ DASHBOARD ═══════════════
 function RDB(){
-  const d=D(); const c1=d.cw1Alloc||[]; const m=d.meta||{};
+  const d=D(); const c1=d.cw1Alloc||[]; const c2=d.cw2Alloc||[]; const m=d.meta||{};
   const tA=c1.reduce((a,r)=>a+r.allocated,0);
-  const tM=c1.reduce((a,r)=>a+r.marked,0);
-  const tR=c1.reduce((a,r)=>a+r.remaining,0);
+  const tM=c1.reduce((a,r)=>a+(r.marked||0),0);
+  const tR=c1.reduce((a,r)=>a+(r.remaining!=null?r.remaining:Math.max(0,r.allocated-(r.marked||0))),0);
   const pct=tA>0?(tM/tA*100).toFixed(1):0;
+  const tA2=c2.reduce((a,r)=>a+r.allocated,0);
+  const tM2=c2.reduce((a,r)=>a+(r.marked||0),0);
+  const tR2=c2.reduce((a,r)=>a+(r.remaining!=null?r.remaining:Math.max(0,r.allocated-(r.marked||0))),0);
+  const pct2=tA2>0?(tM2/tA2*100).toFixed(1):0;
   const ns1=(d.nonSubmissionsCW1||[]).length;
   const ns2=(d.nonSubmissionsCW2||[]).length;
 
@@ -702,6 +708,12 @@ function RDB(){
     <div class="kpi am"><div class="v">${Math.round(tR)}</div><div class="l">CW1 Remaining</div></div>
     <div class="kpi bl"><div class="v">${pct}%</div><div class="l">CW1 Progress</div></div>
     <div class="kpi rd"><div class="v">${ns1+ns2}</div><div class="l">Non-Submissions</div></div>
+  </div>
+  <div class="krow">
+    <div class="kpi tl"><div class="v">${Math.round(tA2)}</div><div class="l">CW2 Allocated</div></div>
+    <div class="kpi gr"><div class="v">${Math.round(tM2)}</div><div class="l">CW2 Marked</div></div>
+    <div class="kpi am"><div class="v">${Math.round(tR2)}</div><div class="l">CW2 Remaining</div></div>
+    <div class="kpi bl"><div class="v">${pct2}%</div><div class="l">CW2 Progress</div></div>
   </div>`;
 
   // Shuffle bar (admin only)
@@ -734,23 +746,25 @@ function AT(alloc, title, col, isCW2, totCls){
   let pc=null;
   alloc.forEach(r=>{
     if(r.campus!==pc){h+=`<tr class="gh"><td colspan="9">${r.campus}</td></tr>`;pc=r.campus;}
-    const rc=r.remaining<=0?'#15803D':r.remaining>2?'#B91C1C':'#B45309';
+    const marked=r.marked||0;
+    const rem=r.remaining!=null?r.remaining:Math.max(0,r.allocated-marked);
+    const rc=rem<=0?'#15803D':rem>2?'#B91C1C':'#B45309';
     h+=`<tr><td class="L">${r.campus}</td><td class="L">${r.groupSession}</td><td class="L">${r.lecturer}</td>
     <td class="C">${Math.round(r.allocPct*100)}%</td><td class="C">${r.totalSubs}</td>
     <td class="C">${fmt(r.allocated)}</td>
-    <td class="C">${isCW2?'—':r.marked}</td>
-    <td class="C" style="color:${isCW2?'#64748b':rc};font-weight:${isCW2?'400':'700'}">${isCW2?fmt(r.allocated):fmt(r.remaining)}</td>
-    <td>${isCW2?'<span style="color:#94a3b8;font-size:11px">Not yet commenced</span>':pb(r.marked,r.allocated,r.remaining<=0?'#15803D':col)}</td></tr>`;
+    <td class="C">${marked}</td>
+    <td class="C" style="color:${rc};font-weight:700">${fmt(rem)}</td>
+    <td>${pb(marked,r.allocated,rem<=0?'#15803D':col)}</td></tr>`;
   });
   const tA=alloc.reduce((a,r)=>a+r.allocated,0);
-  const tM=alloc.reduce((a,r)=>a+r.marked,0);
-  const tR=alloc.reduce((a,r)=>a+r.remaining,0);
+  const tM=alloc.reduce((a,r)=>a+(r.marked||0),0);
+  const tR=alloc.reduce((a,r)=>a+(r.remaining!=null?r.remaining:Math.max(0,r.allocated-(r.marked||0))),0);
   h+=`<tr class="${totCls}"><td class="L" colspan="3" style="color:#fff">TOTALS</td>
     <td class="C" style="color:#fff">—</td><td class="C" style="color:#fff">—</td>
     <td class="C" style="color:#fff">${fmt(tA)}</td>
-    <td class="C" style="color:#fff">${isCW2?'—':fmt(tM)}</td>
-    <td class="C" style="color:#fff">${isCW2?fmt(tA):fmt(tR)}</td>
-    <td style="color:#fff">${isCW2?'—':pb(tM,tA,'#fff')}</td></tr>`;
+    <td class="C" style="color:#fff">${fmt(tM)}</td>
+    <td class="C" style="color:#fff">${fmt(tR)}</td>
+    <td style="color:#fff">${pb(tM,tA,'#fff')}</td></tr>`;
   return h+'</tbody></table></div></div>';
 }
 
@@ -1294,37 +1308,40 @@ function resetShuffle(){
 }
 
 function rebuildAllocCounts(){
-  // After a shuffle, recalculate allocated/remaining per marker from actual student counts
+  // Recalculate allocated, marked, and remaining from actual student statuses
   var d = D();
   var students = d.students || [];
 
-  // Build count map: campus|group|marker -> count of submitters
-  var countMap = {};
+  // Build three maps keyed by campus|group|marker
+  var subsMap = {};      // students who submitted (not Non-Sub / Not Required)
+  var cw1MarkedMap = {}; // students with cw1Status === 'Yes'
+  var cw2MarkedMap = {}; // students with cw2Status === 'Yes'
+
   students.forEach(function(s){
-    if(['Non-Submission','Not Required'].includes(s.cw1Status)) return;
     var k = s.campus + '||' + s.group + '||' + s.marker;
-    countMap[k] = (countMap[k]||0) + 1;
+    if(!['Non-Submission','Not Required'].includes(s.cw1Status)){
+      subsMap[k] = (subsMap[k]||0) + 1;
+    }
+    if(s.cw1Status === 'Yes') cw1MarkedMap[k] = (cw1MarkedMap[k]||0) + 1;
+    if(s.cw2Status === 'Yes') cw2MarkedMap[k] = (cw2MarkedMap[k]||0) + 1;
   });
 
-  // Update cw1Alloc
+  // Update cw1Alloc — allocated from submitters, marked from 'Yes' statuses
   (cohorts[activeCohort].cw1Alloc||[]).forEach(function(r){
     var grp = r.groupSession.split(' - ')[0];
     var k = r.campus + '||' + grp + '||' + r.lecturer;
-    if(countMap[k] !== undefined){
-      var prev = r.allocated;
-      r.allocated = countMap[k];
-      r.remaining = Math.max(0, r.allocated - (r.marked||0));
-    }
+    if(subsMap[k] !== undefined) r.allocated = subsMap[k];
+    r.marked = cw1MarkedMap[k] || 0;
+    r.remaining = Math.max(0, r.allocated - r.marked);
   });
 
-  // Mirror same counts to cw2Alloc
+  // Update cw2Alloc — same submitter base, CW2 marked count
   (cohorts[activeCohort].cw2Alloc||[]).forEach(function(r){
     var grp = r.groupSession.split(' - ')[0];
     var k = r.campus + '||' + grp + '||' + r.lecturer;
-    if(countMap[k] !== undefined){
-      r.allocated = countMap[k];
-      r.remaining = Math.max(0, r.allocated - (r.marked||0));
-    }
+    if(subsMap[k] !== undefined) r.allocated = subsMap[k];
+    r.marked = cw2MarkedMap[k] || 0;
+    r.remaining = Math.max(0, r.allocated - r.marked);
   });
 
   saveAll();
